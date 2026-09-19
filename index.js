@@ -124,7 +124,23 @@ client.on('guildMemberRemove', async (member) => {
 
 // Event: ada interaction (slash command dipanggil, tombol diklik, dll)
 client.on('interactionCreate', async (interaction) => {
-    // Kalau yang terjadi adalah klik tombol
+  // Kalau yang terjadi adalah slash command
+  if (interaction.isChatInputCommand()) {
+    const command = client.commands.get(interaction.commandName);
+
+    if (!command) {
+      console.log(`Command ${interaction.commandName} tidak ditemukan.`);
+      return;
+    }
+
+    try {
+      await command.execute(interaction);
+    } catch (error) {
+      console.error(`Error saat menjalankan command ${interaction.commandName}:`, error);
+    }
+  }
+
+  // Kalau yang terjadi adalah klik tombol
   if (interaction.isButton()) {
     if (interaction.customId === 'verify') {
       // Langsung "defer" dulu, kasih Discord lebih banyak waktu (sampai 15 menit)
