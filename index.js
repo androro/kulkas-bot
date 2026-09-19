@@ -28,7 +28,7 @@ client.once('clientReady', () => {
   console.log(`Kulkas online sebagai ${client.user.tag}`);
 
   client.user.setPresence({
-    activities: [{ name: 'Aku "istrinya" Aethorne, hmph!', type: 0 }], // type 3 = Watching
+    activities: [{ name: 'hmph!', type: 0 }], // type 3 = Watching
     status: 'online', // online | idle | dnd | invisible
   });
 });
