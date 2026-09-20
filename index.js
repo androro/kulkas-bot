@@ -95,11 +95,9 @@ client.on('guildMemberAdd', async (member) => {
 
     const randomTemplate = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
 
-    const randomGoodbyeTemplate = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
-
     await channel.send({
-      content: randomGoodbyeTemplate(member.user.tag),
-      embeds: [goodbyeEmbed],
+      content: randomTemplate(member),
+      embeds: [welcomeEmbed],
       files: [avatarAttachment],
     });
 
@@ -140,8 +138,10 @@ client.on('guildMemberRemove', async (member) => {
       )
       .setThumbnail('attachment://avatar.png');
 
+    const randomGoodbyeTemplate = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
+
     await channel.send({
-      content: `${member.user.tag} has left Tongkrongan Tech.`,
+      content: randomGoodbyeTemplate(member.user.tag),
       embeds: [goodbyeEmbed],
       files: [avatarAttachment],
     });
