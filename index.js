@@ -59,7 +59,7 @@ function startLofiRadio(client) {
     channelId: channel.id,
     guildId: channel.guild.id,
     adapterCreator: channel.guild.voiceAdapterCreator,
-    selfDeaf: true, // bot nggak perlu "denger" apa-apa
+    selfDeaf: false, // bot nggak perlu "denger" apa-apa
   });
 
   const player = createAudioPlayer({
