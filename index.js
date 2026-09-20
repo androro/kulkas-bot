@@ -343,8 +343,7 @@ client.on('interactionCreate', async (interaction) => {
           }).catch(() => {}); // kalau gagal lagi, diamkan aja, jangan crash
         }
       }
-    } 
-    else if (interaction.customId.startsWith('menfess_report_')) {
+    } else if (interaction.customId.startsWith('menfess_report_')) {
       const menfessId = Number(interaction.customId.replace('menfess_report_', ''));
       const entry = markReported(menfessId);
 
@@ -354,6 +353,30 @@ client.on('interactionCreate', async (interaction) => {
           : 'Menfess ini nggak ketemu di data.',
         flags: MessageFlags.Ephemeral,
       });
+
+      // Kirim detail ke channel log khusus admin (kalau data ketemu)
+      if (entry) {
+        try {
+          const logChannel = await interaction.client.channels.fetch(process.env.MOD_LOG_CHANNEL_ID);
+
+          if (logChannel) {
+            const reportedUser = await interaction.client.users.fetch(entry.userId).catch(() => null);
+
+            const logEmbed = new EmbedBuilder()
+              .setColor(0xfda4af)
+              .setTitle(`Menfess #${String(menfessId).padStart(3, '0')} dilaporkan`)
+              .addFields(
+                { name: 'Pengirim menfess', value: reportedUser ? `${reportedUser.tag} (${entry.userId})` : entry.userId, inline: false },
+                { name: 'Dikirim pada', value: `<t:${Math.floor(entry.timestamp / 1000)}:f>`, inline: true },
+                { name: 'Dilaporkan oleh', value: `${interaction.user.tag}`, inline: true }
+              );
+
+            await logChannel.send({ embeds: [logEmbed] });
+          }
+        } catch (error) {
+          console.error('Gagal kirim log report ke mod channel:', error);
+        }
+      }
 
       console.log(`Menfess #${menfessId} dilaporkan oleh ${interaction.user.tag}`);
     }
