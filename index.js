@@ -15,6 +15,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers, // butuh ini buat deteksi member baru join
     GatewayIntentBits.DirectMessages, // butuh ini buat terima DM
     GatewayIntentBits.MessageContent, // butuh ini buat baca isi pesan
+    GatewayIntentBits.GuildVoiceStates, // wajib buat voice/audio
   ],
   partials: [Partials.Channel], // wajib, biar event DM ke-detect walau channel belum ke-cache
 });
@@ -59,7 +60,7 @@ function startLofiRadio(client) {
     channelId: channel.id,
     guildId: channel.guild.id,
     adapterCreator: channel.guild.voiceAdapterCreator,
-    selfDeaf: false, // bot nggak perlu "denger" apa-apa
+    selfDeaf: true, // bot nggak perlu "denger" apa-apa
   });
 
   const player = createAudioPlayer({
