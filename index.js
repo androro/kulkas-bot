@@ -12,6 +12,32 @@ const client = new Client({
   ],
 });
 
+const welcomeMessages = [
+  (mention) => `Selamat datang ${mention}. Jangan bikin masalah.`,
+  (mention) => `Oh, ${mention} datang. Selamat datang.`,
+  (mention) => `Hah? ${mention} masuk? Ya sudah, selamat datang.`,
+  (mention) => `Selamat datang ${mention}. B-bukan berarti aku senang.`,
+  (mention) => `${mention}, akhirnya datang juga. Jangan diam saja.`,
+  (mention) => `Selamat datang ${mention}. Baca rules dulu.`,
+  (mention) => `Oh, penghuni baru. Selamat datang ${mention}.`,
+  (mention) => `${mention} telah bergabung. Jangan merepotkan.`,
+  (mention) => `Hmph, ${mention} datang juga. Selamat datang.`,
+  (mention) => `Selamat datang ${mention}. Jangan sampai bikin masalah.`,
+];
+
+const goodbyeMessages = [
+  (tag) => `${tag} pergi. Ya sudah.`,
+  (tag) => `Hah? ${tag} keluar? Terserah.`,
+  (tag) => `${tag} telah pergi. Jangan lupa jalan pulang.`,
+  (tag) => `Oh, ${tag} keluar. Ya sudah, hati-hati.`,
+  (tag) => `Selamat jalan ${tag}. B-bukan berarti aku akan merindukanmu.`,
+  (tag) => `${tag} pergi juga. Server jadi lebih sepi.`,
+  (tag) => `Hmph, ${tag} meninggalkan server.`,
+  (tag) => `${tag} sudah keluar. Jangan kembali kalau cuma bikin masalah.`,
+  (tag) => `Oh, ${tag} pergi. Ya sudah, sana.`,
+  (tag) => `${tag} telah meninggalkan **Tongkrongan Tech**.`,
+];
+
 // Load semua command dari folder commands/
 client.commands = new Map();
 const commandsPath = path.join(__dirname, 'commands');
@@ -67,9 +93,13 @@ client.on('guildMemberAdd', async (member) => {
       )
       .setThumbnail('attachment://avatar.png');
 
+    const randomTemplate = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+
+    const randomGoodbyeTemplate = goodbyeMessages[Math.floor(Math.random() * goodbyeMessages.length)];
+
     await channel.send({
-      content: `Welcome ${member} to **Tongkrongan Tech**!`,
-      embeds: [welcomeEmbed],
+      content: randomGoodbyeTemplate(member.user.tag),
+      embeds: [goodbyeEmbed],
       files: [avatarAttachment],
     });
 
