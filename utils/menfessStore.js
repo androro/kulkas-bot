@@ -64,4 +64,11 @@ function addReport(id, reporterId) {
   return { entry, alreadyReported: false };
 }
 
-module.exports = { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport };
+// Reset counter menfess ke 0 (nomor berikutnya bakal mulai dari #001 lagi)
+function resetCounter() {
+  const store = readStore();
+  store.counter = 0;
+  writeStore(store);
+}
+
+module.exports = { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, resetCounter };
