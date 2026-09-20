@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
-const { getNextMenfessNumber, logMenfess, markReported } = require('./utils/menfessStore');
+const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport } = require('./utils/menfessStore');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -215,7 +215,7 @@ async function handleMenfessSubmission(message) {
 
     const reportRow = new ActionRowBuilder().addComponents(reportButton);
 
-    await forumChannel.threads.create({
+    const thread = await forumChannel.threads.create({
       name: title,
       message: {
         content: textContent || '\u200b', // zero-width space kalau cuma gambar, biar nggak kosong
@@ -224,7 +224,7 @@ async function handleMenfessSubmission(message) {
       },
     });
 
-    logMenfess({ id: menfessId, userId: message.author.id });
+    logMenfess({ id: menfessId, userId: message.author.id, threadId: thread.id });
 
     await message.reply('Menfess kamu sudah dikirim secara anonim.');
   } catch (error) {
@@ -343,42 +343,115 @@ client.on('interactionCreate', async (interaction) => {
           }).catch(() => {}); // kalau gagal lagi, diamkan aja, jangan crash
         }
       }
-    } else if (interaction.customId.startsWith('menfess_report_')) {
+        } else if (interaction.customId.startsWith('menfess_report_')) {
       const menfessId = Number(interaction.customId.replace('menfess_report_', ''));
-      const entry = markReported(menfessId);
+      const { entry, alreadyReported } = addReport(menfessId, interaction.user.id);
+
+      if (!entry) {
+        await interaction.reply({
+          content: 'Menfess ini nggak ketemu di data.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      if (alreadyReported) {
+        await interaction.reply({
+          content: 'Kamu udah pernah report menfess ini.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
 
       await interaction.reply({
-        content: entry
-          ? 'Laporan diterima. Admin bakal ninjau menfess ini.'
-          : 'Menfess ini nggak ketemu di data.',
+        content: 'Laporan diterima. Admin bakal ninjau menfess ini.',
         flags: MessageFlags.Ephemeral,
       });
 
-      // Kirim detail ke channel log khusus admin (kalau data ketemu)
-      if (entry) {
-        try {
-          const logChannel = await interaction.client.channels.fetch(process.env.MOD_LOG_CHANNEL_ID);
+      // Ubah tombol di post jadi "Sudah dilaporkan" (disabled)
+      try {
+        const disabledButton = new ButtonBuilder()
+          .setCustomId(`menfess_reported_${menfessId}`)
+          .setLabel('Sudah dilaporkan')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true);
 
-          if (logChannel) {
-            const reportedUser = await interaction.client.users.fetch(entry.userId).catch(() => null);
+        const disabledRow = new ActionRowBuilder().addComponents(disabledButton);
+        await interaction.message.edit({ components: [disabledRow] });
+      } catch (error) {
+        console.error('Gagal update tombol report:', error);
+      }
 
-            const logEmbed = new EmbedBuilder()
-              .setColor(0xfda4af)
-              .setTitle(`Menfess #${String(menfessId).padStart(3, '0')} dilaporkan`)
-              .addFields(
-                { name: 'Pengirim menfess', value: reportedUser ? `${reportedUser.tag} (${entry.userId})` : entry.userId, inline: false },
-                { name: 'Dikirim pada', value: `<t:${Math.floor(entry.timestamp / 1000)}:f>`, inline: true },
-                { name: 'Dilaporkan oleh', value: `${interaction.user.tag}`, inline: true }
-              );
+      // Kirim detail ke channel log khusus admin, dengan tombol Delete Post
+      try {
+        const logChannel = await interaction.client.channels.fetch(process.env.MOD_LOG_CHANNEL_ID);
 
-            await logChannel.send({ embeds: [logEmbed] });
-          }
-        } catch (error) {
-          console.error('Gagal kirim log report ke mod channel:', error);
+        if (logChannel) {
+          const reportedUser = await interaction.client.users.fetch(entry.userId).catch(() => null);
+
+          const logEmbed = new EmbedBuilder()
+            .setColor(0xfda4af)
+            .setTitle(`Menfess #${String(menfessId).padStart(3, '0')} dilaporkan`)
+            .addFields(
+              { name: 'Pengirim menfess', value: reportedUser ? `${reportedUser.tag} (${entry.userId})` : entry.userId, inline: false },
+              { name: 'Dikirim pada', value: `<t:${Math.floor(entry.timestamp / 1000)}:f>`, inline: true },
+              { name: 'Dilaporkan oleh', value: `${interaction.user.tag}`, inline: true }
+            );
+
+          const deleteButton = new ButtonBuilder()
+            .setCustomId(`menfess_delete_${menfessId}`)
+            .setLabel('Delete Post')
+            .setStyle(ButtonStyle.Danger);
+
+          const deleteRow = new ActionRowBuilder().addComponents(deleteButton);
+
+          await logChannel.send({ embeds: [logEmbed], components: [deleteRow] });
         }
+      } catch (error) {
+        console.error('Gagal kirim log report ke mod channel:', error);
       }
 
       console.log(`Menfess #${menfessId} dilaporkan oleh ${interaction.user.tag}`);
+    } else if (interaction.customId.startsWith('menfess_delete_')) {
+      const menfessId = Number(interaction.customId.replace('menfess_delete_', ''));
+      const entry = getMenfessEntry(menfessId);
+
+      if (!entry || !entry.threadId) {
+        await interaction.reply({
+          content: 'Data thread menfess ini nggak ketemu.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
+
+      try {
+        const thread = await interaction.client.channels.fetch(entry.threadId).catch(() => null);
+
+        if (thread) {
+          await thread.delete();
+        }
+
+        await interaction.reply({
+          content: `Post Menfess #${String(menfessId).padStart(3, '0')} berhasil dihapus.`,
+          flags: MessageFlags.Ephemeral,
+        });
+
+        // Disable tombol delete biar nggak ke-klik dobel
+        const disabledDeleteButton = new ButtonBuilder()
+          .setCustomId(`menfess_deleted_${menfessId}`)
+          .setLabel('Post sudah dihapus')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true);
+
+        const disabledDeleteRow = new ActionRowBuilder().addComponents(disabledDeleteButton);
+        await interaction.message.edit({ components: [disabledDeleteRow] });
+      } catch (error) {
+        console.error('Gagal hapus thread menfess:', error);
+        await interaction.reply({
+          content: 'Gagal hapus post. Mungkin sudah dihapus manual.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
   }
 });

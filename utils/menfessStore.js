@@ -31,22 +31,37 @@ function getNextMenfessNumber() {
 }
 
 // Simpan data internal (untuk moderasi) — TIDAK ditampilkan ke member
-function logMenfess({ id, userId }) {
+function logMenfess({ id, userId, threadId }) {
   const store = readStore();
-  store.logs.push({ id, userId, timestamp: Date.now(), reported: false });
+  store.logs.push({ id, userId, threadId, timestamp: Date.now(), reported: false, reporters: [] });
   writeStore(store);
 }
 
-// Tandai menfess sebagai dilaporkan
-function markReported(id) {
+// Ambil satu entry menfess berdasarkan ID
+function getMenfessEntry(id) {
   const store = readStore();
-  const entry = store.logs.find((log) => log.id === id);
-  if (entry) {
-    entry.reported = true;
-    entry.reportedAt = Date.now();
-    writeStore(store);
-  }
-  return entry || null;
+  return store.logs.find((log) => log.id === id) || null;
 }
 
-module.exports = { getNextMenfessNumber, logMenfess, markReported };
+// Tambahkan report dari seorang user. Cegah report dobel dari orang yang sama.
+function addReport(id, reporterId) {
+  const store = readStore();
+  const entry = store.logs.find((log) => log.id === id);
+
+  if (!entry) {
+    return { entry: null, alreadyReported: false };
+  }
+
+  if (entry.reporters.includes(reporterId)) {
+    return { entry, alreadyReported: true };
+  }
+
+  entry.reporters.push(reporterId);
+  entry.reported = true;
+  entry.reportedAt = Date.now();
+  writeStore(store);
+
+  return { entry, alreadyReported: false };
+}
+
+module.exports = { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport };
