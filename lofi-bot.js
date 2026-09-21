@@ -9,9 +9,37 @@ const path = require('node:path');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates, // wajib buat voice/audio
+    GatewayIntentBits.GuildVoiceStates,
   ],
 });
+
+const DAY_TRACK = path.join(__dirname, 'music', 'lofi.mp3');
+const NIGHT_TRACK = path.join(__dirname, 'music', 'lofi-night.mp3');
+
+// Cek apakah sekarang termasuk jam malam (22:00 - 05:00 WIB)
+function isNightTime() {
+  const hourWIB = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Jakarta',
+    hour: 'numeric',
+    hour12: false,
+  });
+  const hour = Number(hourWIB);
+  return hour >= 22 || hour < 5;
+}
+
+function getCurrentTrack() {
+  return isNightTime() ? NIGHT_TRACK : DAY_TRACK;
+}
+
+let player;
+let currentTrackPath;
+
+function playLofi() {
+  const trackPath = getCurrentTrack();
+  currentTrackPath = trackPath;
+  const resource = createAudioResource(trackPath);
+  player.play(resource);
+}
 
 function startLofiRadio() {
   const channelId = process.env.LOFI_VOICE_CHANNEL_ID;
@@ -29,20 +57,16 @@ function startLofiRadio() {
     selfDeaf: true,
   });
 
-  const player = createAudioPlayer({
+  player = createAudioPlayer({
     behaviors: {
       noSubscriber: NoSubscriberBehavior.Play,
     },
   });
 
-  function playLofi() {
-    const resource = createAudioResource(path.join(__dirname, 'music', 'lofi.mp3'));
-    player.play(resource);
-  }
-
   playLofi();
   connection.subscribe(player);
 
+  // Begitu lagu selesai, cek lagi jam berapa sekarang, baru main ulang (bisa jadi track beda)
   player.on(AudioPlayerStatus.Idle, () => {
     playLofi();
   });
@@ -56,8 +80,19 @@ function startLofiRadio() {
     setTimeout(() => startLofiRadio(), 5000);
   });
 
-  console.log('Kulkas Radio mulai muterin lofi.');
+  console.log(`Kulkas Radio mulai muterin lofi (${isNightTime() ? 'malam' : 'siang'}).`);
 }
+
+// Cek tiap 5 menit — kalau ternyata udah ganti waktu (siang↔malam) di tengah lagu, langsung switch track
+setInterval(() => {
+  if (!player) return;
+
+  const expectedTrack = getCurrentTrack();
+  if (expectedTrack !== currentTrackPath) {
+    console.log(`Waktu berubah, ganti ke track ${isNightTime() ? 'malam' : 'siang'}.`);
+    playLofi();
+  }
+}, 5 * 60 * 1000);
 
 client.once('clientReady', () => {
   console.log(`Kulkas Radio online sebagai ${client.user.tag}`);
