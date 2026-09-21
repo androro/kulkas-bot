@@ -1,10 +1,7 @@
 require('dotenv').config();
-const ffmpegPath = require('ffmpeg-static');
-process.env.FFMPEG_PATH = ffmpegPath;
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
 const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport } = require('./utils/menfessStore');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, NoSubscriberBehavior } = require('@discordjs/voice');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -15,7 +12,6 @@ const client = new Client({
     GatewayIntentBits.GuildMembers, // butuh ini buat deteksi member baru join
     GatewayIntentBits.DirectMessages, // butuh ini buat terima DM
     GatewayIntentBits.MessageContent, // butuh ini buat baca isi pesan
-    GatewayIntentBits.GuildVoiceStates, // wajib buat voice/audio
   ],
   partials: [Partials.Channel], // wajib, biar event DM ke-detect walau channel belum ke-cache
 });
@@ -46,55 +42,6 @@ const goodbyeMessages = [
   (tag) => `${tag} telah meninggalkan **Tongkrongan Tech**.`,
 ];
 
-// Fungsi buat join voice channel & muterin lofi looping terus
-function startLofiRadio(client) {
-  const channelId = process.env.LOFI_VOICE_CHANNEL_ID;
-  const channel = client.channels.cache.get(channelId);
-
-  if (!channel) {
-    console.log('Voice channel lofi tidak ditemukan. Cek LOFI_VOICE_CHANNEL_ID di .env');
-    return;
-  }
-
-  const connection = joinVoiceChannel({
-    channelId: channel.id,
-    guildId: channel.guild.id,
-    adapterCreator: channel.guild.voiceAdapterCreator,
-    selfDeaf: true, // bot nggak perlu "denger" apa-apa
-  });
-
-  const player = createAudioPlayer({
-    behaviors: {
-      noSubscriber: NoSubscriberBehavior.Play, // tetap main walau nggak ada yang denger
-    },
-  });
-
-  function playLofi() {
-    const resource = createAudioResource(path.join(__dirname, 'music', 'lofi.mp3'));
-    player.play(resource);
-  }
-
-  playLofi();
-  connection.subscribe(player);
-
-  // Begitu lagu selesai, langsung putar ulang dari awal (loop)
-  player.on(AudioPlayerStatus.Idle, () => {
-    playLofi();
-  });
-
-  player.on('error', (error) => {
-    console.error('Error di audio player lofi:', error);
-  });
-
-  // Kalau koneksi voice putus, coba reconnect
-  connection.on(VoiceConnectionStatus.Disconnected, () => {
-    console.log('Koneksi voice lofi terputus, mencoba reconnect...');
-    setTimeout(() => startLofiRadio(client), 5000);
-  });
-
-  console.log('Kulkas mulai muterin lofi radio.');
-}
-
 // Konfigurasi fitur Menfess
 const MENFESS_TIMEOUT_MS = 5 * 60 * 1000; // 5 menit
 const MAX_ATTACHMENT_SIZE_MB = 8;
@@ -122,8 +69,6 @@ client.once('clientReady', () => {
     activities: [{ name: 'hmph!', type: 0 }],
     status: 'online',
   });
-
-  startLofiRadio(client);
 });
 
 // Event: ada member baru join server
@@ -136,7 +81,7 @@ client.on('guildMemberAdd', async (member) => {
       return;
     }
 
-        // Generate avatar circle + border
+    // Generate avatar circle + border
     const avatarBuffer = await generateCircleAvatar(
       member.user.displayAvatarURL({ extension: 'png', size: 512 }),
       '#fda4af'
@@ -398,7 +343,7 @@ client.on('interactionCreate', async (interaction) => {
           }).catch(() => {}); // kalau gagal lagi, diamkan aja, jangan crash
         }
       }
-        } else if (interaction.customId.startsWith('menfess_report_')) {
+    } else if (interaction.customId.startsWith('menfess_report_')) {
       const menfessId = Number(interaction.customId.replace('menfess_report_', ''));
       const { entry, alreadyReported } = addReport(menfessId, interaction.user.id);
 
