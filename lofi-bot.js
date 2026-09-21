@@ -31,22 +31,24 @@ function getCurrentTrack() {
   return isNightTime() ? NIGHT_TRACK : DAY_TRACK;
 }
 
-let player;
-let currentTrackPath;
+// Nyimpen player & track aktif per channel, biar bisa dikelola satu-satu
+const activeRadios = new Map();
 
-function playLofi() {
+function playLofi(channelId) {
+  const radio = activeRadios.get(channelId);
+  if (!radio) return;
+
   const trackPath = getCurrentTrack();
-  currentTrackPath = trackPath;
+  radio.currentTrackPath = trackPath;
   const resource = createAudioResource(trackPath);
-  player.play(resource);
+  radio.player.play(resource);
 }
 
-function startLofiRadio() {
-  const channelId = process.env.LOFI_VOICE_CHANNEL_ID;
+function startLofiRadio(channelId) {
   const channel = client.channels.cache.get(channelId);
 
   if (!channel) {
-    console.log('Voice channel lofi tidak ditemukan. Cek LOFI_VOICE_CHANNEL_ID di .env');
+    console.log(`Voice channel ${channelId} tidak ditemukan. Cek LOFI_VOICE_CHANNEL_IDS di .env`);
     return;
   }
 
@@ -57,46 +59,62 @@ function startLofiRadio() {
     selfDeaf: true,
   });
 
-  player = createAudioPlayer({
+  const player = createAudioPlayer({
     behaviors: {
       noSubscriber: NoSubscriberBehavior.Play,
     },
   });
 
-  playLofi();
+  activeRadios.set(channelId, { player, connection, currentTrackPath: null });
+
+  playLofi(channelId);
   connection.subscribe(player);
 
-  // Begitu lagu selesai, cek lagi jam berapa sekarang, baru main ulang (bisa jadi track beda)
   player.on(AudioPlayerStatus.Idle, () => {
-    playLofi();
+    playLofi(channelId);
   });
 
   player.on('error', (error) => {
-    console.error('Error di audio player lofi:', error);
+    console.error(`Error di audio player lofi (channel ${channelId}):`, error);
   });
 
   connection.on(VoiceConnectionStatus.Disconnected, () => {
-    console.log('Koneksi voice lofi terputus, mencoba reconnect...');
-    setTimeout(() => startLofiRadio(), 5000);
+    console.log(`Koneksi voice lofi terputus (channel ${channelId}), mencoba reconnect...`);
+    activeRadios.delete(channelId);
+    setTimeout(() => startLofiRadio(channelId), 5000);
   });
 
-  console.log(`Kulkas Radio mulai muterin lofi (${isNightTime() ? 'malam' : 'siang'}).`);
+  console.log(`Kulkas Radio mulai muterin lofi di ${channel.guild.name} (${isNightTime() ? 'malam' : 'siang'}).`);
 }
 
-// Cek tiap 5 menit — kalau ternyata udah ganti waktu (siang↔malam) di tengah lagu, langsung switch track
+// Cek tiap 5 menit — kalau ternyata udah ganti waktu, switch track di SEMUA channel aktif
 setInterval(() => {
-  if (!player) return;
-
   const expectedTrack = getCurrentTrack();
-  if (expectedTrack !== currentTrackPath) {
-    console.log(`Waktu berubah, ganti ke track ${isNightTime() ? 'malam' : 'siang'}.`);
-    playLofi();
+
+  for (const [channelId, radio] of activeRadios) {
+    if (expectedTrack !== radio.currentTrackPath) {
+      console.log(`Waktu berubah, ganti ke track ${isNightTime() ? 'malam' : 'siang'} di channel ${channelId}.`);
+      playLofi(channelId);
+    }
   }
 }, 5 * 60 * 1000);
 
 client.once('clientReady', () => {
   console.log(`Kulkas Radio online sebagai ${client.user.tag}`);
-  startLofiRadio();
+
+  const channelIds = (process.env.LOFI_VOICE_CHANNEL_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (channelIds.length === 0) {
+    console.log('Tidak ada voice channel yang dikonfigurasi. Cek LOFI_VOICE_CHANNEL_IDS di .env');
+    return;
+  }
+
+  for (const channelId of channelIds) {
+    startLofiRadio(channelId);
+  }
 });
 
 client.login(process.env.LOFI_BOT_TOKEN);
