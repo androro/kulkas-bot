@@ -46,6 +46,7 @@ const goodbyeMessages = [
 const MENFESS_TIMEOUT_MS = 5 * 60 * 1000; // 5 menit
 const MAX_ATTACHMENT_SIZE_MB = 8;
 const MAX_TEXT_LENGTH = 2000;
+const MAX_TITLE_LENGTH = 80; // dikurangi karena bakal digabung sama "Menfess #001 - "
 
 // Nyimpen siapa aja yang lagi dalam sesi menfess (in-memory, hilang kalau bot restart)
 const menfessSessions = new Map();
@@ -165,7 +166,7 @@ client.on('guildMemberRemove', async (member) => {
 });
 
 // Proses isi menfess yang dikirim member, lalu post ke Forum Channel
-async function handleMenfessSubmission(message) {
+async function handleMenfessSubmission(message, title) {
   const textContent = message.content.trim();
   const attachments = [...message.attachments.values()];
   const imageAttachments = attachments.filter((att) => att.contentType?.startsWith('image/'));
@@ -206,7 +207,7 @@ async function handleMenfessSubmission(message) {
     }
 
     const menfessId = getNextMenfessNumber();
-    const title = `Menfess #${String(menfessId).padStart(3, '0')}`;
+    const threadTitle = `#${String(menfessId).padStart(3, '0')} - ${title}`.slice(0, 100);
 
     const reportButton = new ButtonBuilder()
       .setCustomId(`menfess_report_${menfessId}`)
@@ -216,7 +217,7 @@ async function handleMenfessSubmission(message) {
     const reportRow = new ActionRowBuilder().addComponents(reportButton);
 
     const thread = await forumChannel.threads.create({
-      name: title,
+      name: threadTitle,
       message: {
         content: textContent || '\u200b', // zero-width space kalau cuma gambar, biar nggak kosong
         files: imageAttachments.map((att) => att.url), // forward langsung dari URL, tidak disimpan lokal
@@ -239,7 +240,8 @@ client.on('messageCreate', async (message) => {
   if (message.channel.type !== ChannelType.DM) return;
 
   const userId = message.author.id;
-  const content = message.content.trim().toLowerCase();
+  const rawContent = message.content.trim();
+  const content = rawContent.toLowerCase();
 
   // Kalau member sedang dalam sesi menfess aktif
   if (menfessSessions.has(userId)) {
@@ -252,9 +254,35 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    // Tahap 1: sedang nunggu judul
+    if (session.stage === 'title') {
+      if (!rawContent) {
+        await message.reply('Judul nggak boleh kosong. Kirim judulnya dulu, atau ketik `cancel`.');
+        return;
+      }
+
+      if (rawContent.length > MAX_TITLE_LENGTH) {
+        await message.reply(`Judul kepanjangan. Maksimal ${MAX_TITLE_LENGTH} karakter.`);
+        return;
+      }
+
+      clearTimeout(session.timeout);
+
+      const newTimeout = setTimeout(() => {
+        menfessSessions.delete(userId);
+        message.reply('Sesi menfess dibatalkan karena kelamaan nggak ada respon.').catch(() => {});
+      }, MENFESS_TIMEOUT_MS);
+
+      menfessSessions.set(userId, { stage: 'content', title: rawContent, timeout: newTimeout });
+      await message.reply('Judul diterima. Sekarang kirim isi menfess kamu.');
+      return;
+    }
+
+    // Tahap 2: sedang nunggu isi pesan
     clearTimeout(session.timeout);
+    const title = session.title;
     menfessSessions.delete(userId);
-    await handleMenfessSubmission(message);
+    await handleMenfessSubmission(message, title);
     return;
   }
 
@@ -265,8 +293,8 @@ client.on('messageCreate', async (message) => {
       message.reply('Sesi menfess dibatalkan karena kelamaan nggak ada respon.').catch(() => {});
     }, MENFESS_TIMEOUT_MS);
 
-    menfessSessions.set(userId, { timeout });
-    await message.reply('Silakan kirim pesan menfess kamu.');
+    menfessSessions.set(userId, { stage: 'title', title: null, timeout });
+    await message.reply('Judul menfess kamu apa?');
   }
 });
 
