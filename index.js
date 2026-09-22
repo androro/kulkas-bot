@@ -295,6 +295,43 @@ client.on('messageCreate', async (message) => {
 
     menfessSessions.set(userId, { stage: 'title', title: null, timeout });
     await message.reply('Judul menfess kamu apa? (ketik `skip` kalau nggak mau pakai judul)');
+    return;
+  }
+
+  // Handle "hapus <nomor>"
+  if (content.startsWith('hapus ')) {
+    const menfessId = Number(content.replace('hapus ', '').trim());
+
+    if (!menfessId || Number.isNaN(menfessId)) {
+      await message.reply('Format salah. Contoh: `hapus 5` buat hapus menfess #005.');
+      return;
+    }
+
+    const entry = getMenfessEntry(menfessId);
+
+    if (!entry) {
+      await message.reply(`Menfess #${String(menfessId).padStart(3, '0')} nggak ketemu di data.`);
+      return;
+    }
+
+    if (entry.userId !== userId) {
+      await message.reply('Itu bukan menfess kamu. Nggak bisa dihapus.');
+      return;
+    }
+
+    try {
+      const thread = await message.client.channels.fetch(entry.threadId).catch(() => null);
+
+      if (thread) {
+        await thread.delete();
+      }
+
+      await message.reply(`Menfess #${String(menfessId).padStart(3, '0')} kamu udah dihapus.`);
+      console.log(`Menfess #${menfessId} dihapus sendiri oleh pengirim lewat DM.`);
+    } catch (error) {
+      console.error('Gagal hapus menfess sendiri:', error);
+      await message.reply('Gagal hapus. Mungkin post-nya udah dihapus duluan.');
+    }
   }
 });
 
