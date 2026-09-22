@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
-const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport } = require('./utils/menfessStore');
+const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber } = require('./utils/menfessStore');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -319,12 +319,14 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    try {
+        try {
       const thread = await message.client.channels.fetch(entry.threadId).catch(() => null);
 
       if (thread) {
         await thread.delete();
       }
+
+      freeNumber(menfessId);
 
       await message.reply(`Menfess #${String(menfessId).padStart(3, '0')} kamu udah dihapus.`);
       console.log(`Menfess #${menfessId} dihapus sendiri oleh pengirim lewat DM.`);
@@ -496,11 +498,13 @@ client.on('interactionCreate', async (interaction) => {
           await thread.delete();
         }
 
+        freeNumber(menfessId);
+
         await interaction.reply({
           content: `Post Menfess #${String(menfessId).padStart(3, '0')} berhasil dihapus.`,
           flags: MessageFlags.Ephemeral,
         });
-
+        
         // Disable tombol delete biar nggak ke-klik dobel
         const disabledDeleteButton = new ButtonBuilder()
           .setCustomId(`menfess_deleted_${menfessId}`)

@@ -9,22 +9,33 @@ function ensureStore() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify({ counter: 0, logs: [] }, null, 2));
+    fs.writeFileSync(STORE_PATH, JSON.stringify({ counter: 0, logs: [], freedNumbers: [] }, null, 2));
   }
 }
 
 function readStore() {
   ensureStore();
-  return JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
+  const data = JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
+  if (!data.freedNumbers) data.freedNumbers = []; // jaga-jaga buat data lama
+  return data;
 }
 
 function writeStore(data) {
   fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2));
 }
 
-// Ambil nomor menfess berikutnya (otomatis bertambah, tersimpan permanen)
+// Ambil nomor menfess berikutnya. Prioritas: pakai nomor bekas yang udah dibebasin
+// (yang paling kecil dulu). Kalau nggak ada, baru nambah nomor baru.
 function getNextMenfessNumber() {
   const store = readStore();
+
+  if (store.freedNumbers.length > 0) {
+    store.freedNumbers.sort((a, b) => a - b);
+    const reused = store.freedNumbers.shift();
+    writeStore(store);
+    return reused;
+  }
+
   store.counter += 1;
   writeStore(store);
   return store.counter;
@@ -33,6 +44,8 @@ function getNextMenfessNumber() {
 // Simpan data internal (untuk moderasi) — TIDAK ditampilkan ke member
 function logMenfess({ id, userId, threadId }) {
   const store = readStore();
+  // Hapus log lama dengan ID yang sama kalau ada (kasus nomor dipakai ulang)
+  store.logs = store.logs.filter((log) => log.id !== id);
   store.logs.push({ id, userId, threadId, timestamp: Date.now(), reported: false, reporters: [] });
   writeStore(store);
 }
@@ -64,11 +77,37 @@ function addReport(id, reporterId) {
   return { entry, alreadyReported: false };
 }
 
-// Reset counter menfess ke 0 (nomor berikutnya bakal mulai dari #001 lagi)
-function resetCounter() {
+// Reset counter menfess. Kalau startFrom diisi, nomor berikutnya mulai dari situ+1.
+// Kalau kosong, reset ke 0 (nomor berikutnya #001). Ini juga ngosongin daftar nomor bebas.
+function resetCounter(startFrom = 0) {
   const store = readStore();
-  store.counter = 0;
+  store.counter = startFrom;
+  store.freedNumbers = [];
   writeStore(store);
 }
 
-module.exports = { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, resetCounter };
+// Bebasin sebuah nomor menfess (dipanggil pas menfess dihapus), biar bisa dipakai lagi nanti
+function freeNumber(id) {
+  const store = readStore();
+  store.logs = store.logs.filter((log) => log.id !== id);
+  if (!store.freedNumbers.includes(id)) {
+    store.freedNumbers.push(id);
+  }
+  writeStore(store);
+}
+
+// Ambil daftar nomor yang lagi bebas (bisa dipakai ulang), urut dari kecil
+function getFreedNumbers() {
+  const store = readStore();
+  return [...store.freedNumbers].sort((a, b) => a - b);
+}
+
+module.exports = {
+  getNextMenfessNumber,
+  logMenfess,
+  getMenfessEntry,
+  addReport,
+  resetCounter,
+  freeNumber,
+  getFreedNumbers,
+};
