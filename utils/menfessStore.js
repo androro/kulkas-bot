@@ -121,6 +121,12 @@ function getCommentEntry(id) {
   return store.comments.find((c) => c.id === id) || null;
 }
 
+// Cari entry menfess berdasarkan thread ID (buat forward komentar native)
+function getMenfessEntryByThreadId(threadId) {
+  const store = readStore();
+  return store.logs.find((log) => log.threadId === threadId) || null;
+}
+
 module.exports = {
   getNextMenfessNumber,
   logMenfess,
@@ -131,4 +137,5 @@ module.exports = {
   getFreedNumbers,
   logComment,
   getCommentEntry,
+  getMenfessEntryByThreadId,
 };

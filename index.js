@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
-const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry } = require('./utils/menfessStore');
+const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry, getMenfessEntryByThreadId } = require('./utils/menfessStore');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -229,7 +229,14 @@ async function handleMenfessSubmission(message, title) {
 
     logMenfess({ id: menfessId, userId: message.author.id, threadId: thread.id });
 
-    await message.reply(`Menfess kamu sudah dikirim secara anonim sebagai #${String(menfessId).padStart(3, '0')}.\nHapus menfessmu dengan \`hapus <nomor menfess kamu (#001 menjadi 1)>\`.\nContoh: \`hapus 2\``);
+    await message.reply(
+      `Menfess kamu sudah dikirim secara anonim dengan nomor #${String(menfessId).padStart(3, '0')}.\n\n` +
+      `**Perintah yang bisa dipakai:**\n` +
+      `\`hapus <nomor>\` — hapus menfess kamu (contoh: \`hapus ${menfessId}\`)\n` +
+      `\`balas <nomor> <pesan>\` — balas komentar di menfess manapun secara anonim (contoh: \`balas ${menfessId} setuju banget\`)\n` +
+      `\`hapuskomen <id komentar>\` — hapus komentar kamu sendiri\n` +
+      `\`cancel\` — batalkan sesi menfess yang lagi berjalan`
+    );
   } catch (error) {
     console.error('Error saat proses menfess:', error);
     await message.reply('Ada masalah waktu ngirim menfess. Coba lagi nanti.');
@@ -239,6 +246,27 @@ async function handleMenfessSubmission(message, title) {
 // Event: ada pesan masuk (kita cuma peduli DM)
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+
+  // Kalau ini pesan di thread forum menfess, forward ke pengirim asli
+  if (message.channel.isThread() && message.channel.parentId === process.env.FORUM_MENFESS_CHANNEL_ID) {
+    const entry = getMenfessEntryByThreadId(message.channel.id);
+
+    if (entry && entry.userId !== message.author.id) {
+      try {
+        const originalPoster = await message.client.users.fetch(entry.userId);
+        const contentPreview = message.content || '(gambar/attachment tanpa teks)';
+
+        await originalPoster.send(
+          `Ada komentar baru di Menfess #${String(entry.id).padStart(3, '0')} kamu:\n\n` +
+          `> ${contentPreview}`
+        );
+      } catch (error) {
+        console.log(`Gagal kirim notif komentar thread ke pengirim asli Menfess #${entry.id} (mungkin DM ketutup).`);
+      }
+    }
+    return;
+  }
+
   if (message.channel.type !== ChannelType.DM) return;
 
   const userId = message.author.id;
@@ -383,7 +411,7 @@ client.on('messageCreate', async (message) => {
       const lastMessage = recentMessages?.first();
 
       const sentMessage = await thread.send({
-        content: `**Balasan anonim:**\n${replyText}`,
+        content: `💬 **Balasan anonim:**\n${replyText}`,
         reply: lastMessage ? { messageReference: lastMessage.id } : undefined,
       });
 
@@ -394,11 +422,29 @@ client.on('messageCreate', async (message) => {
         threadId: thread.id,
       });
 
+      const previewSource = lastMessage?.content || '(tidak ada teks / cuma gambar)';
+      const preview = previewSource.length > 100 ? `${previewSource.slice(0, 100)}...` : previewSource;
+
       await message.reply(
-        `Balasan kamu (Komentar #${commentId}) udah dikirim secara anonim ke Menfess #${String(menfessId).padStart(3, '0')}.\nHapus komentarmu dengan \`hapuskomen ${commentId}\`.`
+        `Balasan kamu (Komentar #${commentId}) udah dikirim secara anonim ke Menfess #${String(menfessId).padStart(3, '0')}.\n\n` +
+        `**Kamu membalas:**\n> ${preview}\n\n` +
+        `Hapus komentarmu dengan \`hapuskomen ${commentId}\`.`
       );
 
       console.log(`Balasan anonim dikirim ke Menfess #${menfessId} (Komentar #${commentId}).`);
+
+      // Kasih tau pengirim asli menfess, kalau yang komentar bukan dia sendiri
+      if (entry.userId !== userId) {
+        try {
+          const originalPoster = await message.client.users.fetch(entry.userId);
+          await originalPoster.send(
+            `Ada komentar baru di Menfess #${String(menfessId).padStart(3, '0')} kamu:\n\n` +
+            `> ${replyText}`
+          );
+        } catch (error) {
+          console.log(`Gagal kirim notif ke pengirim asli Menfess #${menfessId} (mungkin DM ketutup).`);
+        }
+      }
     } catch (error) {
       console.error('Gagal kirim balasan anonim:', error);
       await message.reply('Gagal kirim balasan. Coba lagi nanti.');
