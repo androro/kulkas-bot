@@ -229,7 +229,7 @@ async function handleMenfessSubmission(message, title) {
 
     logMenfess({ id: menfessId, userId: message.author.id, threadId: thread.id });
 
-    await message.reply('Menfess kamu sudah dikirim secara anonim.\nHapus menfessmu dengan  `hapus <nomor menfess kamu (#001 menjadi 1)>`.\nContoh: `hapus 2`');
+    await message.reply(`Menfess kamu sudah dikirim secara anonim sebagai #${String(menfessId).padStart(3, '0')}.\nHapus menfessmu dengan \`hapus <nomor menfess kamu (#001 menjadi 1)>\`.\nContoh: \`hapus 2\``);
   } catch (error) {
     console.error('Error saat proses menfess:', error);
     await message.reply('Ada masalah waktu ngirim menfess. Coba lagi nanti.');
@@ -333,6 +333,65 @@ client.on('messageCreate', async (message) => {
     } catch (error) {
       console.error('Gagal hapus menfess sendiri:', error);
       await message.reply('Gagal hapus. Mungkin post-nya udah dihapus duluan.');
+    }
+  }
+
+    // Handle "balas <nomor> <isi pesan>"
+  if (content.startsWith('balas ')) {
+    const withoutPrefix = rawContent.slice('balas '.length).trim();
+    const spaceIndex = withoutPrefix.indexOf(' ');
+
+    if (spaceIndex === -1) {
+      await message.reply('Format salah. Contoh: `balas 5 setuju banget sih`.');
+      return;
+    }
+
+    const menfessId = Number(withoutPrefix.slice(0, spaceIndex));
+    const replyText = withoutPrefix.slice(spaceIndex + 1).trim();
+
+    if (!menfessId || Number.isNaN(menfessId)) {
+      await message.reply('Nomor menfess-nya salah. Contoh: `balas 5 setuju banget sih`.');
+      return;
+    }
+
+    if (!replyText) {
+      await message.reply('Isi balasannya kosong. Contoh: `balas 5 setuju banget sih`.');
+      return;
+    }
+
+    if (replyText.length > MAX_TEXT_LENGTH) {
+      await message.reply(`Balasan kepanjangan. Maksimal ${MAX_TEXT_LENGTH} karakter.`);
+      return;
+    }
+
+    const entry = getMenfessEntry(menfessId);
+
+    if (!entry) {
+      await message.reply(`Menfess #${String(menfessId).padStart(3, '0')} nggak ketemu.`);
+      return;
+    }
+
+    try {
+      const thread = await message.client.channels.fetch(entry.threadId).catch(() => null);
+
+      if (!thread) {
+        await message.reply('Thread menfess ini udah nggak ada.');
+        return;
+      }
+
+      const starterMessage = await thread.fetchStarterMessage().catch(() => null);
+
+      await thread.send({
+        content: `**Balasan anonim:**\n${replyText}`,
+        reply: starterMessage ? { messageReference: starterMessage.id } : undefined,
+      });
+
+      await message.reply(`Balasan kamu udah dikirim secara anonim ke Menfess #${String(menfessId).padStart(3, '0')}.`);
+
+      console.log(`Balasan anonim dikirim ke Menfess #${menfessId}.`);
+    } catch (error) {
+      console.error('Gagal kirim balasan anonim:', error);
+      await message.reply('Gagal kirim balasan. Coba lagi nanti.');
     }
   }
 });
