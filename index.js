@@ -229,7 +229,7 @@ async function handleMenfessSubmission(message, title) {
 
     logMenfess({ id: menfessId, userId: message.author.id, threadId: thread.id });
 
-    await message.reply('Menfess kamu sudah dikirim secara anonim.');
+    await message.reply('Menfess kamu sudah dikirim secara anonim.\nHapus menfessmu dengan  `hapus <nomor menfess kamu (#001 menjadi 1)>`.\nContoh: `hapus 2`');
   } catch (error) {
     console.error('Error saat proses menfess:', error);
     await message.reply('Ada masalah waktu ngirim menfess. Coba lagi nanti.');
