@@ -12,8 +12,9 @@ const client = new Client({
     GatewayIntentBits.GuildMembers, // butuh ini buat deteksi member baru join
     GatewayIntentBits.DirectMessages, // butuh ini buat terima DM
     GatewayIntentBits.MessageContent, // butuh ini buat baca isi pesan
+    GatewayIntentBits.GuildMessages, // butuh ini buat baca pesan di server (termasuk thread forum)
   ],
-  partials: [Partials.Channel], // wajib, biar event DM ke-detect walau channel belum ke-cache
+  partials: [Partials.Channel],
 });
 
 const welcomeMessages = [
