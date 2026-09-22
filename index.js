@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
-const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber } = require('./utils/menfessStore');
+const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry } = require('./utils/menfessStore');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -371,7 +371,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    try {
+        try {
       const thread = await message.client.channels.fetch(entry.threadId).catch(() => null);
 
       if (!thread) {
@@ -379,19 +379,68 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      const starterMessage = await thread.fetchStarterMessage().catch(() => null);
+      const recentMessages = await thread.messages.fetch({ limit: 1 }).catch(() => null);
+      const lastMessage = recentMessages?.first();
 
-      await thread.send({
+      const sentMessage = await thread.send({
         content: `**Balasan anonim:**\n${replyText}`,
-        reply: starterMessage ? { messageReference: starterMessage.id } : undefined,
+        reply: lastMessage ? { messageReference: lastMessage.id } : undefined,
       });
 
-      await message.reply(`Balasan kamu udah dikirim secara anonim ke Menfess #${String(menfessId).padStart(3, '0')}.`);
+      const commentId = logComment({
+        menfessId,
+        userId,
+        messageId: sentMessage.id,
+        threadId: thread.id,
+      });
 
-      console.log(`Balasan anonim dikirim ke Menfess #${menfessId}.`);
+      await message.reply(
+        `Balasan kamu (Komentar #${commentId}) udah dikirim secara anonim ke Menfess #${String(menfessId).padStart(3, '0')}.\nHapus komentarmu dengan \`hapuskomen ${commentId}\`.`
+      );
+
+      console.log(`Balasan anonim dikirim ke Menfess #${menfessId} (Komentar #${commentId}).`);
     } catch (error) {
       console.error('Gagal kirim balasan anonim:', error);
       await message.reply('Gagal kirim balasan. Coba lagi nanti.');
+    }
+  }
+
+    // Handle "hapuskomen <id>"
+  if (content.startsWith('hapuskomen ')) {
+    const commentId = Number(content.replace('hapuskomen ', '').trim());
+
+    if (!commentId || Number.isNaN(commentId)) {
+      await message.reply('Format salah. Contoh: `hapuskomen 12`.');
+      return;
+    }
+
+    const commentEntry = getCommentEntry(commentId);
+
+    if (!commentEntry) {
+      await message.reply(`Komentar #${commentId} nggak ketemu.`);
+      return;
+    }
+
+    if (commentEntry.userId !== userId) {
+      await message.reply('Itu bukan komentar kamu. Nggak bisa dihapus.');
+      return;
+    }
+
+    try {
+      const thread = await message.client.channels.fetch(commentEntry.threadId).catch(() => null);
+
+      if (thread) {
+        const msg = await thread.messages.fetch(commentEntry.messageId).catch(() => null);
+        if (msg) {
+          await msg.delete();
+        }
+      }
+
+      await message.reply(`Komentar #${commentId} kamu udah dihapus.`);
+      console.log(`Komentar #${commentId} dihapus sendiri oleh pengirim.`);
+    } catch (error) {
+      console.error('Gagal hapus komentar:', error);
+      await message.reply('Gagal hapus. Mungkin komentarnya udah dihapus duluan.');
     }
   }
 });

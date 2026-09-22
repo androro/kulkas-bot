@@ -9,7 +9,7 @@ function ensureStore() {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify({ counter: 0, logs: [], freedNumbers: [] }, null, 2));
+    fs.writeFileSync(STORE_PATH, JSON.stringify({ counter: 0, logs: [], freedNumbers: [], commentCounter: 0, comments: [] }, null, 2));
   }
 }
 
@@ -17,6 +17,8 @@ function readStore() {
   ensureStore();
   const data = JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
   if (!data.freedNumbers) data.freedNumbers = []; // jaga-jaga buat data lama
+  if (!data.commentCounter) data.commentCounter = 0;
+  if (!data.comments) data.comments = [];
   return data;
 }
 
@@ -41,19 +43,22 @@ function getNextMenfessNumber() {
   return store.counter;
 }
 
-// Simpan data internal (untuk moderasi) — TIDAK ditampilkan ke member
-function logMenfess({ id, userId, threadId }) {
+// Simpan data komentar (untuk moderasi & fitur hapus komen sendiri)
+function logComment({ menfessId, userId, messageId, threadId }) {
   const store = readStore();
-  // Hapus log lama dengan ID yang sama kalau ada (kasus nomor dipakai ulang)
-  store.logs = store.logs.filter((log) => log.id !== id);
-  store.logs.push({ id, userId, threadId, timestamp: Date.now(), reported: false, reporters: [] });
+  store.commentCounter += 1;
+  const id = store.commentCounter;
+
+  store.comments.push({ id, menfessId, userId, messageId, threadId, timestamp: Date.now() });
   writeStore(store);
+
+  return id;
 }
 
-// Ambil satu entry menfess berdasarkan ID
-function getMenfessEntry(id) {
+// Ambil satu entry komentar berdasarkan ID
+function getCommentEntry(id) {
   const store = readStore();
-  return store.logs.find((log) => log.id === id) || null;
+  return store.comments.find((c) => c.id === id) || null;
 }
 
 // Tambahkan report dari seorang user. Cegah report dobel dari orang yang sama.
@@ -110,4 +115,6 @@ module.exports = {
   resetCounter,
   freeNumber,
   getFreedNumbers,
+  logComment,
+  getCommentEntry,
 };
