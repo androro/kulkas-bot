@@ -207,7 +207,9 @@ async function handleMenfessSubmission(message, title) {
     }
 
     const menfessId = getNextMenfessNumber();
-    const threadTitle = `#${String(menfessId).padStart(3, '0')} - ${title}`.slice(0, 100);
+    const threadTitle = title
+      ? `#${String(menfessId).padStart(3, '0')} - ${title}`.slice(0, 100)
+      : `Menfess #${String(menfessId).padStart(3, '0')}`;
 
     const reportButton = new ButtonBuilder()
       .setCustomId(`menfess_report_${menfessId}`)
@@ -256,13 +258,10 @@ client.on('messageCreate', async (message) => {
 
     // Tahap 1: sedang nunggu judul
     if (session.stage === 'title') {
-      if (!rawContent) {
-        await message.reply('Judul nggak boleh kosong. Kirim judulnya dulu, atau ketik `cancel`.');
-        return;
-      }
+      const isSkip = content === 'skip';
 
-      if (rawContent.length > MAX_TITLE_LENGTH) {
-        await message.reply(`Judul kepanjangan. Maksimal ${MAX_TITLE_LENGTH} karakter.`);
+      if (!isSkip && rawContent.length > MAX_TITLE_LENGTH) {
+        await message.reply(`Judul kepanjangan. Maksimal ${MAX_TITLE_LENGTH} karakter. Atau ketik \`skip\` buat lewati.`);
         return;
       }
 
@@ -273,7 +272,8 @@ client.on('messageCreate', async (message) => {
         message.reply('Sesi menfess dibatalkan karena kelamaan nggak ada respon.').catch(() => {});
       }, MENFESS_TIMEOUT_MS);
 
-      menfessSessions.set(userId, { stage: 'content', title: rawContent, timeout: newTimeout });
+      const titleValue = isSkip ? null : rawContent;
+      menfessSessions.set(userId, { stage: 'content', title: titleValue, timeout: newTimeout });
       await message.reply('Judul diterima. Sekarang kirim isi menfess kamu.');
       return;
     }
@@ -294,7 +294,7 @@ client.on('messageCreate', async (message) => {
     }, MENFESS_TIMEOUT_MS);
 
     menfessSessions.set(userId, { stage: 'title', title: null, timeout });
-    await message.reply('Judul menfess kamu apa?');
+    await message.reply('Judul menfess kamu apa? (ketik `skip` kalau nggak mau pakai judul)');
   }
 });
 
