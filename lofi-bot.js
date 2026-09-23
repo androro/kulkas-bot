@@ -15,6 +15,7 @@ const client = new Client({
 
 const DAY_TRACK = path.join(__dirname, 'music', 'lofi.mp3');
 const NIGHT_TRACK = path.join(__dirname, 'music', 'lofi-night.mp3');
+const NIGHT_INTRO_TRACK = path.join(__dirname, 'music', 'brahms-lullaby.mp3');
 
 // Cek apakah sekarang termasuk jam malam (22:00 - 05:00 WIB)
 function isNightTime() {
@@ -40,8 +41,20 @@ function playLofi(channelId) {
 
   const trackPath = getCurrentTrack();
   radio.currentTrackPath = trackPath;
+  radio.lastKnownIsNight = isNightTime();
   const resource = createAudioResource(trackPath);
   radio.player.play(resource);
+}
+
+function playNightIntro(channelId) {
+  const radio = activeRadios.get(channelId);
+  if (!radio) return;
+
+  radio.currentTrackPath = NIGHT_INTRO_TRACK;
+  radio.lastKnownIsNight = true;
+  const resource = createAudioResource(NIGHT_INTRO_TRACK);
+  radio.player.play(resource);
+  console.log(`Muterin Brahms Lullaby dulu sebelum lofi malam di channel ${channelId}.`);
 }
 
 function startLofiRadio(channelId) {
@@ -65,9 +78,20 @@ function startLofiRadio(channelId) {
     },
   });
 
-  activeRadios.set(channelId, { player, connection, currentTrackPath: null });
+  activeRadios.set(channelId, {
+    player,
+    connection,
+    currentTrackPath: null,
+    lastKnownIsNight: isNightTime(),
+  });
 
-  playLofi(channelId);
+  // Kalau pas start udah malam, mulai dengan Brahms dulu; kalau siang, langsung track siang
+  if (isNightTime()) {
+    playNightIntro(channelId);
+  } else {
+    playLofi(channelId);
+  }
+
   connection.subscribe(player);
 
   player.on(AudioPlayerStatus.Idle, () => {
@@ -87,13 +111,18 @@ function startLofiRadio(channelId) {
   console.log(`Kulkas Radio mulai muterin lofi di ${channel.guild.name} (${isNightTime() ? 'malam' : 'siang'}).`);
 }
 
-// Cek tiap 5 menit — kalau ternyata udah ganti waktu, switch track di SEMUA channel aktif
+// Cek tiap 5 menit — kalau ternyata udah ganti waktu, switch track (dan mainkan intro kalau baru masuk malam)
 setInterval(() => {
-  const expectedTrack = getCurrentTrack();
+  const nowIsNight = isNightTime();
 
   for (const [channelId, radio] of activeRadios) {
-    if (expectedTrack !== radio.currentTrackPath) {
-      console.log(`Waktu berubah, ganti ke track ${isNightTime() ? 'malam' : 'siang'} di channel ${channelId}.`);
+    const justEnteredNight = nowIsNight && !radio.lastKnownIsNight;
+
+    if (justEnteredNight) {
+      console.log(`Waktu berubah jadi malam di channel ${channelId}, muterin intro dulu.`);
+      playNightIntro(channelId);
+    } else if (nowIsNight !== radio.lastKnownIsNight) {
+      console.log(`Waktu berubah, ganti ke track ${nowIsNight ? 'malam' : 'siang'} di channel ${channelId}.`);
       playLofi(channelId);
     }
   }
@@ -101,6 +130,11 @@ setInterval(() => {
 
 client.once('clientReady', () => {
   console.log(`Kulkas Radio online sebagai ${client.user.tag}`);
+
+  client.user.setPresence({
+    activities: [{ name: 'Lofi Radio 24/7', type: 2 }], // type 2 = Listening
+    status: 'online',
+  });
 
   const channelIds = (process.env.LOFI_VOICE_CHANNEL_IDS || '')
     .split(',')
