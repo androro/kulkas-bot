@@ -35,6 +35,23 @@ function getCurrentTrack() {
 // Nyimpen player & track aktif per channel, biar bisa dikelola satu-satu
 const activeRadios = new Map();
 
+function updatePresence(trackPath) {
+  const trackNames = {
+    'lofi.mp3': 'Lofi Day (05:00 - 22:00)',
+    'lofi-night.mp3': 'Lofi Night (22:00 - 05:00)',
+    'brahms-lullaby.mp3': "Time for Sleep! (Intro)",
+  };
+  const fileName = path.basename(trackPath);
+  const trackName = trackNames[fileName] || 'Lofi Radio';
+
+  if (client.user) {
+    client.user.setPresence({
+      activities: [{ name: trackName, type: 2 }], // type 2 = Listening
+      status: 'online',
+    });
+  }
+}
+
 function playLofi(channelId) {
   const radio = activeRadios.get(channelId);
   if (!radio) return;
@@ -44,6 +61,7 @@ function playLofi(channelId) {
   radio.lastKnownIsNight = isNightTime();
   const resource = createAudioResource(trackPath);
   radio.player.play(resource);
+  updatePresence(trackPath);
 }
 
 function playNightIntro(channelId) {
@@ -54,6 +72,7 @@ function playNightIntro(channelId) {
   radio.lastKnownIsNight = true;
   const resource = createAudioResource(NIGHT_INTRO_TRACK);
   radio.player.play(resource);
+  updatePresence(NIGHT_INTRO_TRACK);
   console.log(`Muterin Brahms Lullaby dulu sebelum lofi malam di channel ${channelId}.`);
 }
 
@@ -130,11 +149,6 @@ setInterval(() => {
 
 client.once('clientReady', () => {
   console.log(`Kulkas Radio online sebagai ${client.user.tag}`);
-
-  client.user.setPresence({
-    activities: [{ name: 'Lofi Radio 24/7', type: 2 }], // type 2 = Listening
-    status: 'online',
-  });
 
   const channelIds = (process.env.LOFI_VOICE_CHANNEL_IDS || '')
     .split(',')
