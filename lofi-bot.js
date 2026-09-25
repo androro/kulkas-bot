@@ -13,7 +13,10 @@ const client = new Client({
   ],
 });
 
-const DAY_TRACK = path.join(__dirname, 'music', 'lofi.mp3');
+const DAY_TRACKS = [
+  path.join(__dirname, 'music', 'lofi.mp3'),
+  path.join(__dirname, 'music', 'lofi-2.mp3'),
+];
 const NIGHT_TRACK = path.join(__dirname, 'music', 'lofi-night.mp3');
 const NIGHT_INTRO_TRACK = path.join(__dirname, 'music', 'brahms-lullaby.mp3');
 
@@ -28,8 +31,13 @@ function isNightTime() {
   return hour >= 22 || hour < 5;
 }
 
-function getCurrentTrack() {
-  return isNightTime() ? NIGHT_TRACK : DAY_TRACK;
+function getCurrentTrack(radio) {
+  if (isNightTime()) {
+    return NIGHT_TRACK;
+  }
+
+  radio.dayTrackIndex = (radio.dayTrackIndex + 1) % DAY_TRACKS.length;
+  return DAY_TRACKS[radio.dayTrackIndex];
 }
 
 // Nyimpen player & track aktif per channel, biar bisa dikelola satu-satu
@@ -37,9 +45,10 @@ const activeRadios = new Map();
 
 function updatePresence(trackPath) {
   const trackNames = {
-    'lofi.mp3': 'Lofi Day (05:00 - 22:00)',
+    'lofi.mp3': 'Lofi Day 1 (05:00 - 22:00)',
+    'lofi-2.mp3': 'Lofi Day 2 (05:00 - 22:00)',
     'lofi-night.mp3': 'Lofi Night (22:00 - 05:00)',
-    'brahms-lullaby.mp3': "Time for Sleep! (Intro)",
+    'brahms-lullaby.mp3': 'Time for Sleep! (Intro)',
   };
   const fileName = path.basename(trackPath);
   const trackName = trackNames[fileName] || 'Lofi Radio';
@@ -56,7 +65,7 @@ function playLofi(channelId) {
   const radio = activeRadios.get(channelId);
   if (!radio) return;
 
-  const trackPath = getCurrentTrack();
+  const trackPath = getCurrentTrack(radio);
   radio.currentTrackPath = trackPath;
   radio.lastKnownIsNight = isNightTime();
   const resource = createAudioResource(trackPath);
@@ -102,6 +111,7 @@ function startLofiRadio(channelId) {
     connection,
     currentTrackPath: null,
     lastKnownIsNight: isNightTime(),
+    dayTrackIndex: -1,
   });
 
   // Kalau pas start udah malam, mulai dengan Brahms dulu; kalau siang, langsung track siang
