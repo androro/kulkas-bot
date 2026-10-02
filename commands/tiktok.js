@@ -1,3 +1,4 @@
+const { sendLiveNotification } = require('../utils/tiktokMonitor');
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const {
   getNotificationChannel,
@@ -147,32 +148,35 @@ module.exports = {
     }
 
     if (subcommand === 'test') {
-      const channelId = getNotificationChannel(guildId);
-      if (!channelId) {
+      const users = getTrackedUsers();
+
+      if (users.length === 0) {
         return interaction.reply({
-          content: 'Channel notifikasi TikTok belum diatur! Gunakan `/tiktok channel <channel>` terlebih dahulu.',
+          content: 'Belum ada akun TikTok yang dipantau. Tambahkan akun dengan `/tiktok add <username>` terlebih dahulu.',
           ephemeral: true,
         });
       }
 
-      const channel = interaction.guild.channels.cache.get(channelId);
-      if (!channel) {
-        return interaction.reply({
-          content: 'Channel notifikasi yang tersimpan tidak ditemukan di server ini. Silakan atur ulang dengan `/tiktok channel`.',
-          ephemeral: true,
-        });
-      }
+      const username = users[0];
 
-      const testEmbed = new EmbedBuilder()
-        .setColor(0xfda4af)
-        .setTitle('TikTok Notification Test')
-        .setDescription('Ini adalah test pesan notifikasi TikTok dari Bot Kulkas. Sistem berjalan normal!');
-
-      await channel.send({ embeds: [testEmbed] });
-      return interaction.reply({
-        content: `Test notifikasi berhasil dikirim ke ${channel}!`,
+      await interaction.reply({
+        content: `🧪 Mensimulasikan **OFFLINE → LIVE** untuk **@${username}**...`,
         ephemeral: true,
       });
+
+      try {
+        await sendLiveNotification(interaction.client, username);
+
+        await interaction.editReply({
+          content: `✅ Simulasi **OFFLINE → LIVE** untuk **@${username}** berhasil. Cek channel notifikasi TikTok.`,
+        });
+      } catch (error) {
+        console.error('[TikTok Test] Gagal menjalankan simulasi:', error);
+
+        await interaction.editReply({
+          content: '❌ Simulasi gagal. Cek console/log Railway untuk detail error.',
+        });
+      }
     }
   },
 };

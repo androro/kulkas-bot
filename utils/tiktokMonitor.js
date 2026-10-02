@@ -135,4 +135,5 @@ function startTikTokMonitor(client) {
 
 module.exports = {
   startTikTokMonitor,
+  sendLiveNotification,
 };
