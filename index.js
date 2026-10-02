@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType, Partials } = require('discord.js');
 const { generateCircleAvatar } = require('./utils/generateAvatar');
 const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry, getMenfessEntryByThreadId } = require('./utils/menfessStore');
+const { startTikTokMonitor } = require('./utils/tiktokMonitor');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -71,6 +72,8 @@ client.once('clientReady', () => {
     activities: [{ name: 'hmph!', type: 0 }],
     status: 'online',
   });
+
+  startTikTokMonitor(client);
 });
 
 // Event: ada member baru join server
@@ -659,7 +662,7 @@ client.on('interactionCreate', async (interaction) => {
           content: `Post Menfess #${String(menfessId).padStart(3, '0')} berhasil dihapus.`,
           flags: MessageFlags.Ephemeral,
         });
-        
+
         // Disable tombol delete biar nggak ke-klik dobel
         const disabledDeleteButton = new ButtonBuilder()
           .setCustomId(`menfess_deleted_${menfessId}`)
