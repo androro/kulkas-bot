@@ -56,7 +56,6 @@ async function checkUser(client, username) {
 async function sendLiveNotification(client, username) {
   const trackedUsers = getTrackedUsers();
 
-  // Pastikan username masih terdaftar
   if (!trackedUsers.includes(username)) return;
 
   for (const guild of client.guilds.cache.values()) {
@@ -74,31 +73,47 @@ async function sendLiveNotification(client, username) {
         continue;
       }
 
+      const mention = getNotificationMention(guild.id);
+      const liveUrl = `https://www.tiktok.com/@${username}/live`;
+
+      const contentPrefix =
+        mention === 'none' ? '' : `${mention} `;
+
       const embed = new EmbedBuilder()
         .setColor(0xff0050)
-        .setTitle('TikTok LIVE')
+        .setTitle(`@${username} sedang LIVE di TikTok.`)
         .setDescription(
-          `**@${username}** sedang LIVE di TikTok!`
+          [
+            'Live-nya sudah dimulai. Kalau lagi senggang, boleh mampir dan ikut nonton. Thank you for the support !! <3',
+            '',
+            `**[Tonton Live di TikTok](${liveUrl})**`,
+          ].join('\n')
         )
-        .setURL(`https://www.tiktok.com/@${username}/live`)
+        .setThumbnail(
+          'https://i.giphy.com/lICpVLtmE7s8FyyxQD.webp'
+        )
         .setTimestamp();
 
-      const mention = getNotificationMention(guild.id);
-
-      const content =
-        mention === 'none'
-          ? ''
-          : `${mention} `;
-
       await channel.send({
-        content: `${content} **@${username} sedang LIVE!**`,
+        content: `${contentPrefix} **@${username} LIVE sekarang!**`,
         embeds: [embed],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 5,
+                label: 'Watch Stream',
+                url: liveUrl,
+              },
+            ],
+          },
+        ],
         allowedMentions:
-          mention === 'none'
-            ? { parse: [] }
-            : mention === '@everyone' || mention === '@here'
-              ? { parse: [mention.replace('@', '')] }
-              : { parse: [] },
+          mention === '@everyone' || mention === '@here'
+            ? { parse: ['everyone'] }
+            : { parse: [] },
       });
 
       console.log(
