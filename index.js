@@ -515,6 +515,19 @@ client.on('interactionCreate', async (interaction) => {
 
   // Kalau yang terjadi adalah klik tombol
   if (interaction.isButton()) {
+    if (interaction.customId === 'shalat_enable') {
+      const shalatCommand = client.commands.get('shalat');
+
+      if (!shalatCommand?.handleButton) {
+        return interaction.reply({
+          content: 'Fitur Shalat Reminder sedang bermasalah.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      return shalatCommand.handleButton(interaction);
+    }
+
     if (interaction.customId === 'verify') {
       // Langsung "defer" dulu, kasih Discord lebih banyak waktu (sampai 15 menit)
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
