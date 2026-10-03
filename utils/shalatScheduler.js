@@ -94,15 +94,15 @@ async function checkPrayerTimes(client) {
           embeds: [
             new EmbedBuilder()
               .setColor(0x2f6f4e)
-              .setTitle(`🕌 Waktu ${prayer.name} Telah Tiba`)
+              .setTitle(`Waktu ${prayer.name} Telah Tiba`)
               .setDescription(
                 [
                   `Saatnya menunaikan shalat **${prayer.name}**.`,
                   '',
-                  `📍 **Lokasi**`,
+                  `**Lokasi**`,
                   settings.city,
                   '',
-                  `⏰ **Waktu**`,
+                  `**Waktu**`,
                   `${currentTime} WIB`,
                 ].join('\n')
               )
