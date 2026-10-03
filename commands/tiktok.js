@@ -1,5 +1,5 @@
 const { sendLiveNotification } = require('../utils/tiktokMonitor');
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags, } = require('discord.js');
 const {
   getNotificationChannel,
   setNotificationChannel,
@@ -117,7 +117,7 @@ module.exports = {
           );
       }
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral, });
     }
 
     if (subcommand === 'remove') {
