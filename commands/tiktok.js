@@ -1,4 +1,4 @@
-const { sendLiveNotification } = require('../utils/tiktokMonitor');
+const { sendLiveNotification, getTikTokStates, } = require('../utils/tiktokMonitor');
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags, } = require('discord.js');
 const {
   getNotificationChannel,
@@ -215,6 +215,7 @@ module.exports = {
       const channelId = getNotificationChannel(guildId);
       const mention = getNotificationMention(guildId);
       const users = getTrackedUsers();
+      const states = getTikTokStates();
 
       const channelMention = channelId
         ? `<#${channelId}>`
@@ -222,6 +223,22 @@ module.exports = {
 
       const displayMention =
         mention === 'none' ? 'Tidak ada mention' : mention;
+
+      const accountStatus = users.length
+        ? users
+            .map((username) => {
+              const state = states.get(username);
+
+              if (!state) {
+                return `⚪ \`@${username}\` — Belum dicek`;
+              }
+
+              return state.isLive
+                ? `🔴 \`@${username}\` — **LIVE**`
+                : `⚫ \`@${username}\` — Offline`;
+            })
+            .join('\n')
+        : 'Belum ada akun yang dipantau.';
 
       const embed = new EmbedBuilder()
         .setColor(0xfda4af)
@@ -238,15 +255,29 @@ module.exports = {
             inline: false,
           },
           {
-            name: 'Tracked Accounts Count',
-            value: `${users.length} akun`,
+            name: 'Tracked Accounts',
+            value: accountStatus,
             inline: false,
+          },
+          {
+            name: 'Total Accounts',
+            value: `${users.length} akun`,
+            inline: true,
+          },
+          {
+            name: 'Monitor Interval',
+            value: '5 menit',
+            inline: true,
           }
-        );
+        )
+        .setFooter({
+          text: 'Status berdasarkan pengecekan terakhir Kulkas.',
+        })
+        .setTimestamp();
 
       return interaction.reply({
         embeds: [embed],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 

@@ -143,6 +143,10 @@ async function checkAllUsers(client) {
   }
 }
 
+function getTikTokStates() {
+  return new Map(states);
+}
+
 function startTikTokMonitor(client) {
   console.log(
     `[TikTok] Monitor aktif. Interval: ${POLL_INTERVAL_MS / 60000} menit.`
@@ -164,4 +168,5 @@ function startTikTokMonitor(client) {
 module.exports = {
   startTikTokMonitor,
   sendLiveNotification,
+  getTikTokStates,
 };
