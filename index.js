@@ -694,6 +694,22 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
   }
+
+  // Kalau yang terjadi adalah pilihan dropdown
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'shalat_select_city') {
+      const shalatCommand = client.commands.get('shalat');
+
+      if (!shalatCommand?.handleSelectMenu) {
+        return interaction.reply({
+          content: 'Fitur Shalat Reminder sedang bermasalah.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      return shalatCommand.handleSelectMenu(interaction);
+    }
+  }
 });
 
 // Login pakai token dari .env
