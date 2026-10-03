@@ -78,12 +78,19 @@ module.exports = {
       subcommand
         .setName('status')
         .setDescription('Lihat status konfigurasi TikTok notification')
-    )
+  )
 
     .addSubcommand((subcommand) =>
       subcommand
         .setName('test')
-        .setDescription('Kirim test notifikasi TikTok ke channel yang diatur')
+        .setDescription('Tes notifikasi LIVE untuk akun tertentu')
+        .addStringOption((option) =>
+          option
+            .setName('username')
+            .setDescription('Username TikTok yang ingin dites')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
     ),
 
   async execute(interaction) {
@@ -254,10 +261,19 @@ module.exports = {
         });
       }
 
-      const username = users[0];
+      const username = interaction.options.getString('username');
+
+      if (!users.includes(username)) {
+        return interaction.reply({
+          content:
+            `**@${username}** belum ada di daftar akun TikTok yang dipantau.`,
+          ephemeral: true,
+        });
+      }
 
       await interaction.reply({
-        content: `🧪 Mensimulasikan **OFFLINE → LIVE** untuk **@${username}**...`,
+        content:
+          `Mensimulasikan **OFFLINE → LIVE** untuk **@${username}**...`,
         ephemeral: true,
       });
 
@@ -265,14 +281,18 @@ module.exports = {
         await sendLiveNotification(interaction.client, username);
 
         await interaction.editReply({
-          content: `✅ Simulasi **OFFLINE → LIVE** untuk **@${username}** berhasil. Cek channel notifikasi TikTok.`,
+          content:
+            `Simulasi **OFFLINE → LIVE** untuk **@${username}** berhasil. Cek channel notifikasi TikTok.`,
         });
       } catch (error) {
-        console.error('[TikTok Test] Gagal menjalankan simulasi:', error);
+        console.error(
+          `[TikTok Test] Gagal menjalankan simulasi @${username}:`,
+          error
+        );
 
         await interaction.editReply({
           content:
-            '❌ Simulasi gagal. Cek console/log Railway untuk detail error.',
+            'Simulasi gagal. Cek console/log Railway untuk detail error.',
         });
       }
     }
