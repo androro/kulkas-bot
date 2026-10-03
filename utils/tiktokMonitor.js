@@ -1,6 +1,6 @@
 const { TikTokLiveConnection } = require('tiktok-live-connector');
 const { EmbedBuilder } = require('discord.js');
-const { getTrackedUsers, getNotificationChannel } = require('./tiktokStore');
+const { getTrackedUsers, getNotificationChannel, getNotificationMention, } = require('./tiktokStore');
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 menit
 
@@ -76,16 +76,29 @@ async function sendLiveNotification(client, username) {
 
       const embed = new EmbedBuilder()
         .setColor(0xff0050)
-        .setTitle('🔴 TikTok LIVE')
+        .setTitle('TikTok LIVE')
         .setDescription(
           `**@${username}** sedang LIVE di TikTok!`
         )
         .setURL(`https://www.tiktok.com/@${username}/live`)
         .setTimestamp();
 
+      const mention = getNotificationMention(guild.id);
+
+      const content =
+        mention === 'none'
+          ? ''
+          : `${mention} `;
+
       await channel.send({
-        content: `🔴 **@${username} sedang LIVE!**`,
+        content: `${content} **@${username} sedang LIVE!**`,
         embeds: [embed],
+        allowedMentions:
+          mention === 'none'
+            ? { parse: [] }
+            : mention === '@everyone' || mention === '@here'
+              ? { parse: [mention.replace('@', '')] }
+              : { parse: [] },
       });
 
       console.log(

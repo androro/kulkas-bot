@@ -29,6 +29,7 @@ function readStore() {
     const data = JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
     if (!data.channels) data.channels = {};
     if (!data.trackedUsers) data.trackedUsers = [];
+    if (!data.mentions) data.mentions = {};
     return data;
   } catch (err) {
     return { channels: {}, trackedUsers: [] };
@@ -48,6 +49,22 @@ function getNotificationChannel(guildId) {
 function setNotificationChannel(guildId, channelId) {
   const store = readStore();
   store.channels[guildId] = channelId;
+  writeStore(store);
+}
+
+function getNotificationMention(guildId) {
+  const store = readStore();
+  return store.mentions[guildId] || '@everyone';
+}
+
+function setNotificationMention(guildId, mention) {
+  const store = readStore();
+
+  if (!store.mentions) {
+    store.mentions = {};
+  }
+
+  store.mentions[guildId] = mention;
   writeStore(store);
 }
 
@@ -82,6 +99,8 @@ function removeTrackedUser(username) {
 module.exports = {
   getNotificationChannel,
   setNotificationChannel,
+  getNotificationMention,
+  setNotificationMention,
   getTrackedUsers,
   addTrackedUser,
   removeTrackedUser,
