@@ -92,4 +92,5 @@ module.exports = {
   getUserSettings,
   setUserSettings,
   removeUserSettings,
+  readStore,
 };

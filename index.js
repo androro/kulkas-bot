@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, MessageFlags
 const { generateCircleAvatar } = require('./utils/generateAvatar');
 const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry, getMenfessEntryByThreadId } = require('./utils/menfessStore');
 const { startTikTokMonitor } = require('./utils/tiktokMonitor');
+const { startShalatScheduler } = require('./utils/shalatScheduler');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -74,6 +75,7 @@ client.once('clientReady', () => {
   });
 
   startTikTokMonitor(client);
+  startShalatScheduler(client);
 });
 
 // Event: ada member baru join server
