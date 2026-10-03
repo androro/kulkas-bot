@@ -710,6 +710,21 @@ client.on('interactionCreate', async (interaction) => {
       return shalatCommand.handleSelectMenu(interaction);
     }
   }
+
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'shalat_location_modal') {
+      const shalatCommand = client.commands.get('shalat');
+
+      if (!shalatCommand?.handleModalSubmit) {
+        return interaction.reply({
+          content: 'Fitur Shalat Reminder sedang bermasalah.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      return shalatCommand.handleModalSubmit(interaction);
+    }
+  }
 });
 
 // Login pakai token dari .env

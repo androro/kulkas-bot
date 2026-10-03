@@ -4,8 +4,9 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   MessageFlags,
 } = require('discord.js');
 
@@ -28,7 +29,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x2f6f4e)
-      .setTitle('🕌 Shalat Reminder')
+      .setTitle('Shalat Reminder')
       .setDescription(
         [
           'Kulkas akan mengirimkan pengingat pribadi melalui DM ketika waktu shalat tiba.',
@@ -39,7 +40,7 @@ module.exports = {
 
     const button = new ButtonBuilder()
       .setCustomId('shalat_enable')
-      .setLabel('🔔 Aktifkan Pengingat')
+      .setLabel('Aktifkan Pengingat')
       .setStyle(ButtonStyle.Success);
 
     const row = new ActionRowBuilder().addComponents(button);
@@ -58,29 +59,62 @@ module.exports = {
   async handleButton(interaction) {
     if (interaction.customId !== 'shalat_enable') return;
 
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId('shalat_select_city')
-      .setPlaceholder('📍 Pilih kota kamu')
-      .addOptions(
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Jakarta')
-          .setValue('jakarta'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Bogor')
-          .setValue('bogor'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Bekasi')
-          .setValue('bekasi'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Bandung')
-          .setValue('bandung')
-      );
+    const modal = new ModalBuilder()
+      .setCustomId('shalat_location_modal')
+      .setTitle('Atur Lokasi Shalat');
 
-    const row = new ActionRowBuilder().addComponents(menu);
+    const locationInput = new TextInputBuilder()
+      .setCustomId('shalat_location')
+      .setLabel('Kota atau daerah kamu')
+      .setPlaceholder('Contoh: Cikarang Selatan, Jawa Barat')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(100);
+
+    const row = new ActionRowBuilder().addComponents(locationInput);
+
+    modal.addComponents(row);
+
+    return interaction.showModal(modal);
+  },
+
+  async handleModalSubmit(interaction) {
+    if (interaction.customId !== 'shalat_location_modal') return;
+
+    const location = interaction.fields
+      .getTextInputValue('shalat_location')
+      .trim();
+
+    setUserSettings(interaction.user.id, {
+      city: location,
+      enabled: true,
+    });
+
+    try {
+      await interaction.user.send({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x2f6f4e)
+            .setTitle('Shalat Reminder Aktif')
+            .setDescription(
+              [
+                `Lokasi: **${location}**`,
+                'Pengingat: **Aktif**',
+                '',
+                'Kulkas akan mengirimkan pengingat melalui DM ketika waktu shalat tiba.',
+              ].join('\n')
+            ),
+        ],
+      });
+    } catch (error) {
+      console.error(
+        `[Shalat] Gagal mengirim DM ke ${interaction.user.tag}:`,
+        error.message
+      );
+    }
 
     return interaction.reply({
-      content: '📍 **Pilih kota tempat kamu berada untuk mengaktifkan Shalat Reminder.**',
-      components: [row],
+      content: `Shalat Reminder berhasil diaktifkan untuk **${location}**.`,
       flags: MessageFlags.Ephemeral,
     });
   },
