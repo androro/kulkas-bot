@@ -44,9 +44,14 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(button);
 
-    return interaction.reply({
+    await interaction.channel.send({
       embeds: [embed],
       components: [row],
+    });
+
+    return interaction.reply({
+      content: 'Panel Shalat Reminder berhasil dikirim.',
+      flags: MessageFlags.Ephemeral,
     });
   },
 
