@@ -1,8 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
-const { getUserSettings } = require('./shalatStore');
+
+const { getUserSettings, readStore } = require('./shalatStore');
 const { getPrayerTimes } = require('./shalatApi');
+const { getRandomQuote } = require('./shalatQuotes');
 
 const CHECK_INTERVAL = 60 * 1000;
+const RETRY_INTERVAL = 5 * 60 * 1000;
 
 const PRAYERS = [
   { key: 'Fajr', name: 'Subuh' },
@@ -12,6 +15,7 @@ const PRAYERS = [
   { key: 'Isha', name: 'Isya' },
 ];
 
+const scheduleCache = new Map();
 const sentReminders = new Map();
 
 function getWIBDateTime() {
@@ -45,15 +49,63 @@ function getCurrentTime() {
   return `${hour}:${minute}`;
 }
 
-async function checkPrayerTimes(client) {
-  const store = require('./shalatStore');
+async function getCachedPrayerTimes(location, today) {
+  const cacheKey = `${today}:${location}`;
+  const cached = scheduleCache.get(cacheKey);
 
+  if (cached?.data) {
+    return cached.data;
+  }
+
+  if (
+    cached?.lastError &&
+    Date.now() - cached.lastError < RETRY_INTERVAL
+  ) {
+    throw new Error('Menunggu retry API berikutnya.');
+  }
+
+  try {
+    const data = await getPrayerTimes(location);
+
+    scheduleCache.set(cacheKey, {
+      data,
+      lastError: null,
+    });
+
+    return data;
+  } catch (error) {
+    scheduleCache.set(cacheKey, {
+      data: null,
+      lastError: Date.now(),
+    });
+
+    throw error;
+  }
+}
+
+function cleanupCache(today) {
+  for (const key of scheduleCache.keys()) {
+    if (!key.startsWith(`${today}:`)) {
+      scheduleCache.delete(key);
+    }
+  }
+
+  for (const key of sentReminders.keys()) {
+    if (!key.includes(`:${today}:`)) {
+      sentReminders.delete(key);
+    }
+  }
+}
+
+async function checkPrayerTimes(client) {
   const today = getTodayKey();
   const currentTime = getCurrentTime();
 
-  for (const userId of Object.keys(
-    store.readStore ? store.readStore().users : {}
-  )) {
+  cleanupCache(today);
+
+  const users = readStore().users || {};
+
+  for (const userId of Object.keys(users)) {
     const settings = getUserSettings(userId);
 
     if (!settings?.enabled || !settings.city) {
@@ -61,21 +113,21 @@ async function checkPrayerTimes(client) {
     }
 
     try {
-      const data = await getPrayerTimes(settings.city);
+      const data = await getCachedPrayerTimes(
+        settings.city,
+        today
+      );
 
       const prayer = PRAYERS.find(
         (item) => data.timings[item.key] === currentTime
-      );
-
-      console.log(
-        `[Shalat] Cek ${userId} | ${settings.city} | sekarang ${currentTime}`
       );
 
       if (!prayer) {
         continue;
       }
 
-      const reminderKey = `${userId}:${today}:${prayer.key}`;
+      const reminderKey =
+        `${userId}:${today}:${prayer.key}`;
 
       if (sentReminders.has(reminderKey)) {
         continue;
@@ -89,6 +141,9 @@ async function checkPrayerTimes(client) {
 
       try {
         const user = await client.users.fetch(userId);
+        const userName = user.globalName || user.username;
+
+        const quote = getRandomQuote();
 
         await user.send({
           embeds: [
@@ -97,6 +152,8 @@ async function checkPrayerTimes(client) {
               .setTitle(`Waktu ${prayer.name} Telah Tiba`)
               .setDescription(
                 [
+                  `Dear, **${userName}**.`,
+                  '',
                   `Saatnya menunaikan shalat **${prayer.name}**.`,
                   '',
                   `**Lokasi**`,
@@ -104,7 +161,14 @@ async function checkPrayerTimes(client) {
                   '',
                   `**Waktu**`,
                   `${currentTime} WIB`,
-                ].join('\n')
+                  '',
+                  `*"${quote.text}"*`,
+                  quote.source
+                    ? `${quote.source}`
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join('\n')
               )
               .setFooter({
                 text: 'Shalat Reminder • Kulkas',
@@ -122,10 +186,12 @@ async function checkPrayerTimes(client) {
         );
       }
     } catch (error) {
-      console.error(
-        `[Shalat] Gagal mengecek ${settings.city}:`,
-        error.message
-      );
+      if (error.message !== 'Menunggu retry API berikutnya.') {
+        console.error(
+          `[Shalat] Gagal mengecek ${settings.city}:`,
+          error.message
+        );
+      }
     }
   }
 }
