@@ -48,9 +48,15 @@ module.exports = {
       .setLabel('Ubah Lokasi')
       .setStyle(ButtonStyle.Secondary);
 
+    const disableButton = new ButtonBuilder()
+      .setCustomId('shalat_disable')
+      .setLabel('Nonaktifkan')
+      .setStyle(ButtonStyle.Danger);
+
     const row = new ActionRowBuilder().addComponents(
       enableButton,
-      changeLocationButton
+      changeLocationButton,
+      disableButton
     );
 
     await interaction.channel.send({
@@ -67,23 +73,120 @@ module.exports = {
   async handleButton(interaction) {
     if (
       interaction.customId !== 'shalat_enable' &&
-      interaction.customId !== 'shalat_change_location'
+      interaction.customId !== 'shalat_change_location' &&
+      interaction.customId !== 'shalat_disable'
     ) {
       return;
     }
 
-    if (interaction.customId === 'shalat_change_location') {
-      const settings = getUserSettings(interaction.user.id);
+    const settings = getUserSettings(interaction.user.id);
 
-      if (!settings?.enabled || !settings.city) {
+    // Aktifkan kembali menggunakan lokasi yang tersimpan
+    if (interaction.customId === 'shalat_enable') {
+      if (settings?.enabled) {
         return interaction.reply({
-          content:
-            '⚠️ Kamu belum mengaktifkan Shalat Reminder. Gunakan **🔔 Aktifkan Pengingat** terlebih dahulu.',
+          content: 'Shalat Reminder kamu sudah aktif.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      if (settings?.city) {
+        setUserSettings(interaction.user.id, {
+          enabled: true,
+        });
+
+        try {
+          await interaction.user.send({
+            embeds: [
+              new EmbedBuilder()
+                .setColor(0x2f6f4e)
+                .setTitle('Shalat Reminder Aktif Kembali')
+                .setDescription(
+                  [
+                    `Lokasi: **${settings.city}**`,
+                    'Pengingat: **Aktif**',
+                    '',
+                    'Kulkas akan kembali mengirimkan pengingat melalui DM ketika waktu shalat tiba.',
+                  ].join('\n')
+                )
+                .setFooter({
+                  text: 'Shalat Reminder • Kulkas',
+                }),
+            ],
+          });
+        } catch (error) {
+          console.error(
+            `[Shalat] Gagal mengirim DM ke ${interaction.user.tag}:`,
+            error.message
+          );
+        }
+
+        return interaction.reply({
+          content: `Shalat Reminder berhasil diaktifkan kembali untuk **${settings.city}**.`,
           flags: MessageFlags.Ephemeral,
         });
       }
     }
 
+    // Nonaktifkan
+    if (interaction.customId === 'shalat_disable') {
+      if (!settings?.enabled) {
+        return interaction.reply({
+          content: 'Shalat Reminder kamu memang sedang tidak aktif.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+
+      setUserSettings(interaction.user.id, {
+        enabled: false,
+      });
+
+      try {
+        await interaction.user.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x6b7280)
+              .setTitle('Shalat Reminder Dinonaktifkan')
+              .setDescription(
+                [
+                  'Pengingat shalat kamu berhasil dinonaktifkan.',
+                  '',
+                  `Lokasi tersimpan: **${settings.city}**`,
+                  'Pengingat: **Nonaktif**',
+                  '',
+                  'Lokasi kamu tetap disimpan. Kamu bisa mengaktifkan kembali pengingat kapan saja.',
+                ].join('\n')
+              )
+              .setFooter({
+                text: 'Shalat Reminder • Kulkas',
+              }),
+          ],
+        });
+      } catch (error) {
+        console.error(
+          `[Shalat] Gagal mengirim DM ke ${interaction.user.tag}:`,
+          error.message
+        );
+      }
+
+      return interaction.reply({
+        content: 'Shalat Reminder berhasil dinonaktifkan.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    // Ubah lokasi hanya untuk user yang sudah aktif
+    if (interaction.customId === 'shalat_change_location') {
+      if (!settings?.enabled || !settings.city) {
+        return interaction.reply({
+          content:
+            'Kamu belum mengaktifkan Shalat Reminder. Gunakan **Aktifkan Pengingat** terlebih dahulu.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    }
+
+    // Modal lokasi
     const isChangingLocation =
       interaction.customId === 'shalat_change_location';
 
