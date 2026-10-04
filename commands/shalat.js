@@ -10,7 +10,7 @@ const {
   MessageFlags,
 } = require('discord.js');
 
-const { setUserSettings } = require('../utils/shalatStore');
+const { setUserSettings, getUserSettings } = require('../utils/shalatStore');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -70,6 +70,18 @@ module.exports = {
       interaction.customId !== 'shalat_change_location'
     ) {
       return;
+    }
+
+    if (interaction.customId === 'shalat_change_location') {
+      const settings = getUserSettings(interaction.user.id);
+
+      if (!settings?.enabled || !settings.city) {
+        return interaction.reply({
+          content:
+            '⚠️ Kamu belum mengaktifkan Shalat Reminder. Gunakan **🔔 Aktifkan Pengingat** terlebih dahulu.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
 
     const isChangingLocation =
