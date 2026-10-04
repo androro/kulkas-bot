@@ -38,12 +38,20 @@ module.exports = {
         ].join('\n')
       );
 
-    const button = new ButtonBuilder()
+    const enableButton = new ButtonBuilder()
       .setCustomId('shalat_enable')
       .setLabel('Aktifkan Pengingat')
       .setStyle(ButtonStyle.Success);
 
-    const row = new ActionRowBuilder().addComponents(button);
+    const changeLocationButton = new ButtonBuilder()
+      .setCustomId('shalat_change_location')
+      .setLabel('Ubah Lokasi')
+      .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder().addComponents(
+      enableButton,
+      changeLocationButton
+    );
 
     await interaction.channel.send({
       embeds: [embed],
@@ -57,11 +65,20 @@ module.exports = {
   },
 
   async handleButton(interaction) {
-    if (interaction.customId !== 'shalat_enable') return;
+    if (
+      interaction.customId !== 'shalat_enable' &&
+      interaction.customId !== 'shalat_change_location'
+    ) {
+      return;
+    }
 
     const modal = new ModalBuilder()
       .setCustomId('shalat_location_modal')
-      .setTitle('Atur Lokasi Shalat');
+      .setTitle(
+        interaction.customId === 'shalat_enable'
+          ? 'Atur Lokasi Shalat'
+          : 'Ubah Lokasi Shalat'
+      );
 
     const locationInput = new TextInputBuilder()
       .setCustomId('shalat_location')

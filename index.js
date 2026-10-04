@@ -517,7 +517,10 @@ client.on('interactionCreate', async (interaction) => {
 
   // Kalau yang terjadi adalah klik tombol
   if (interaction.isButton()) {
-    if (interaction.customId === 'shalat_enable') {
+    if (
+      interaction.customId === 'shalat_enable' ||
+      interaction.customId === 'shalat_change_location'
+    ) {
       const shalatCommand = client.commands.get('shalat');
 
       if (!shalatCommand?.handleButton) {
