@@ -519,7 +519,8 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     if (
       interaction.customId === 'shalat_enable' ||
-      interaction.customId === 'shalat_change_location'
+      interaction.customId === 'shalat_change_location' ||
+      interaction.customId === 'shalat_disable'
     ) {
       const shalatCommand = client.commands.get('shalat');
 
