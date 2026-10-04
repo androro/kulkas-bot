@@ -72,17 +72,28 @@ module.exports = {
       return;
     }
 
+    const isChangingLocation =
+      interaction.customId === 'shalat_change_location';
+
     const modal = new ModalBuilder()
-      .setCustomId('shalat_location_modal')
+      .setCustomId(
+        isChangingLocation
+          ? 'shalat_change_location_modal'
+          : 'shalat_location_modal'
+      )
       .setTitle(
-        interaction.customId === 'shalat_enable'
-          ? 'Atur Lokasi Shalat'
-          : 'Ubah Lokasi Shalat'
+        isChangingLocation
+          ? 'Ubah Lokasi Shalat'
+          : 'Atur Lokasi Shalat'
       );
 
     const locationInput = new TextInputBuilder()
       .setCustomId('shalat_location')
-      .setLabel('Kota atau daerah kamu')
+      .setLabel(
+        isChangingLocation
+          ? 'Lokasi baru'
+          : 'Kota atau daerah kamu'
+      )
       .setPlaceholder('Contoh: Cikarang Selatan, Jawa Barat')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
@@ -96,13 +107,21 @@ module.exports = {
   },
 
   async handleModalSubmit(interaction) {
-    if (interaction.customId !== 'shalat_location_modal') return;
+    if (
+      interaction.customId !== 'shalat_location_modal' &&
+      interaction.customId !== 'shalat_change_location_modal'
+    ) {
+      return;
+    }
+
+    const isChangingLocation =
+      interaction.customId === 'shalat_change_location_modal';
 
     const location = interaction.fields
       .getTextInputValue('shalat_location')
       .trim();
 
-    // Cek apakah lokasi valid sebelum disimpan
+    // Validasi lokasi sebelum disimpan
     try {
       const { getPrayerTimes } = require('../utils/shalatApi');
 
@@ -110,7 +129,7 @@ module.exports = {
     } catch (error) {
       return interaction.reply({
         content: [
-          '**Lokasi tidak ditemukan.**',
+          '❌ **Lokasi tidak ditemukan.**',
           '',
           'Coba masukkan lokasi yang lebih spesifik.',
           '',
@@ -133,15 +152,24 @@ module.exports = {
         embeds: [
           new EmbedBuilder()
             .setColor(0x2f6f4e)
-            .setTitle('Shalat Reminder Aktif')
+            .setTitle(
+              isChangingLocation
+                ? 'Lokasi Shalat Diperbarui'
+                : 'Shalat Reminder Aktif'
+            )
             .setDescription(
               [
                 `Lokasi: **${location}**`,
                 'Pengingat: **Aktif**',
                 '',
-                'Kulkas akan mengirimkan pengingat melalui DM ketika waktu shalat tiba.',
+                isChangingLocation
+                  ? 'Lokasi Shalat Reminder kamu berhasil diperbarui.'
+                  : 'Kulkas akan mengirimkan pengingat melalui DM ketika waktu shalat tiba.',
               ].join('\n')
-            ),
+            )
+            .setFooter({
+              text: 'Shalat Reminder • Kulkas',
+            }),
         ],
       });
     } catch (error) {
@@ -152,7 +180,9 @@ module.exports = {
     }
 
     return interaction.reply({
-      content: `Shalat Reminder berhasil diaktifkan untuk **${location}**.`,
+      content: isChangingLocation
+        ? `Lokasi Shalat Reminder berhasil diubah menjadi **${location}**.`
+        : `Shalat Reminder berhasil diaktifkan untuk **${location}**.`,
       flags: MessageFlags.Ephemeral,
     });
   },

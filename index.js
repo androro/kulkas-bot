@@ -717,7 +717,10 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'shalat_location_modal') {
+    if (
+      interaction.customId === 'shalat_location_modal' ||
+      interaction.customId === 'shalat_change_location_modal'
+    ) {
       const shalatCommand = client.commands.get('shalat');
 
       if (!shalatCommand?.handleModalSubmit) {
