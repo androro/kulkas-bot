@@ -85,6 +85,27 @@ module.exports = {
       .getTextInputValue('shalat_location')
       .trim();
 
+    // Cek apakah lokasi valid sebelum disimpan
+    try {
+      const { getPrayerTimes } = require('../utils/shalatApi');
+
+      await getPrayerTimes(location);
+    } catch (error) {
+      return interaction.reply({
+        content: [
+          '**Lokasi tidak ditemukan.**',
+          '',
+          'Coba masukkan lokasi yang lebih spesifik.',
+          '',
+          'Contoh:',
+          '• `Cikarang Selatan, Jawa Barat`',
+          '• `Jakarta, Indonesia`',
+          '• `Tokyo, Japan`',
+        ].join('\n'),
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
     setUserSettings(interaction.user.id, {
       city: location,
       enabled: true,
