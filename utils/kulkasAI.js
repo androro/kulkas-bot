@@ -35,44 +35,55 @@ const grammarDatabase = [1, 2, 3, 4, 5].flatMap((level) => {
   }
 });
 
-function findGrammarReferences(content, limit = 4) {
-  const query = content.toLowerCase();
 
-  // Cari pola grammar yang disebut secara langsung.
-  const exactMatches = grammarDatabase.filter((entry) => {
-    const pattern = entry.pattern
-      ?.replace(/[〜～]/g, '')
+function findGrammarReferences(content, limit = 4) {
+  const query = content
+    .normalize('NFKC')
+    .toLowerCase();
+
+  // Normalisasi pola agar variasi tanda 〜 tidak mengganggu pencarian.
+  const normalizePattern = (value = '') =>
+    value
+      .normalize('NFKC')
+      .replace(/[〜～]/g, '')
       .trim()
       .toLowerCase();
 
-    return pattern && query.includes(pattern);
+  // 1. Prioritaskan pola grammar yang disebut secara eksplisit.
+  const exactMatches = grammarDatabase.filter((entry) => {
+    const pattern = normalizePattern(entry.pattern);
+
+    if (!pattern || pattern.length < 2) return false;
+
+    return query.includes(pattern);
   });
 
   if (exactMatches.length > 0) {
     return exactMatches.slice(0, limit);
   }
 
-  // Pencarian kata kunci dari arti, romaji, dan catatan.
+  // 2. Jika tidak ada pola eksplisit, cari berdasarkan kata kunci.
   const keywords = query
-    .replace(/[^\p{L}\p{N}\s〜～ー]/gu, ' ')
+    .replace(/[^\p{L}\p{N}\sー]/gu, ' ')
     .split(/\s+/)
     .filter((word) => word.length >= 3);
 
-  const scored = grammarDatabase.map((entry) => {
-    const searchable = [
-      entry.pattern,
-      entry.romaji,
-      entry.meaning,
-      entry.notes,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
+  if (keywords.length === 0) return [];
 
-    const score = keywords.reduce(
-      (total, word) => total + (searchable.includes(word) ? 1 : 0),
-      0
-    );
+  const scored = grammarDatabase.map((entry) => {
+    const meaning = (entry.meaning || '').toLowerCase();
+    const notes = (entry.notes || '').toLowerCase();
+    const romaji = (entry.romaji || '').toLowerCase();
+
+    const score = keywords.reduce((total, word) => {
+      let points = 0;
+
+      if (meaning.includes(word)) points += 2;
+      if (notes.includes(word)) points += 1;
+      if (romaji.includes(word)) points += 2;
+
+      return total + points;
+    }, 0);
 
     return { entry, score };
   });
