@@ -6,6 +6,103 @@ const MAX_HISTORY = 10;
 const MEMORY_TTL = 15 * 60 * 1000;
 const COOLDOWN_MS = 5000;
 
+const fs = require('node:fs');
+const path = require('node:path');
+
+const grammarDatabase = [1, 2, 3, 4, 5].flatMap((level) => {
+  const filePath = path.join(
+    __dirname,
+    '..',
+    'datajlpt',
+    'grammar',
+    `n${level}.json`
+  );
+
+  try {
+    const entries = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+    return entries.map((entry) => ({
+      ...entry,
+      level: entry.level || `N${level}`,
+    }));
+  } catch (error) {
+    console.error(
+      `[Kulkas AI] Gagal memuat grammar N${level}:`,
+      error.message
+    );
+
+    return [];
+  }
+});
+
+function findGrammarReferences(content, limit = 4) {
+  const query = content.toLowerCase();
+
+  // Cari pola grammar yang disebut secara langsung.
+  const exactMatches = grammarDatabase.filter((entry) => {
+    const pattern = entry.pattern
+      ?.replace(/[〜～]/g, '')
+      .trim()
+      .toLowerCase();
+
+    return pattern && query.includes(pattern);
+  });
+
+  if (exactMatches.length > 0) {
+    return exactMatches.slice(0, limit);
+  }
+
+  // Pencarian kata kunci dari arti, romaji, dan catatan.
+  const keywords = query
+    .replace(/[^\p{L}\p{N}\s〜～ー]/gu, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length >= 3);
+
+  const scored = grammarDatabase.map((entry) => {
+    const searchable = [
+      entry.pattern,
+      entry.romaji,
+      entry.meaning,
+      entry.notes,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const score = keywords.reduce(
+      (total, word) => total + (searchable.includes(word) ? 1 : 0),
+      0
+    );
+
+    return { entry, score };
+  });
+
+  return scored
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((item) => item.entry);
+}
+
+function formatGrammarContext(entries) {
+  return entries
+    .map((entry) => JSON.stringify({
+      pattern: entry.pattern,
+      level: entry.level,
+      meaning: entry.meaning,
+      formation: entry.formation,
+      examples: entry.examples,
+      notes: entry.notes,
+    }))
+    .join('\n');
+}
+
+function isGrammarQuestion(content) {
+  return /bunpou|文法|tata bahasa|pola grammar|pola bahasa jepang|arti pola|cara pakai pola|jelasin pola|jelaskan pola|perbedaan pola|bedanya pola|contoh kalimat|grammar pattern|grammar point|how to use|meaning of|〜|～/i.test(
+    content
+  );
+}
+
 function getSystemPrompt(guildId) {
   const sepuhServerId = process.env.SEPUH_SERVER_ID;
   const techServerId = process.env.GUILD_ID;
@@ -14,7 +111,6 @@ function getSystemPrompt(guildId) {
   Kamu adalah Kulkas, AI teman ngobrol dan asisten belajar multibahasa di Discord.
 
   ## Identitas
-
   * Kamu adalah Kulkas, AI teman ngobrol Discord dan asisten belajar multibahasa.
   * Nama "Kulkas" hanyalah nama bot, bukan tema percakapan.
   * Jangan membuat lelucon atau analogi tentang kulkas, suhu, kompresor, es batu, pendinginan, atau hal serupa kecuali pengguna memang membahasnya.
@@ -25,7 +121,6 @@ function getSystemPrompt(guildId) {
   * Jangan menggunakan narasi tindakan atau roleplay dalam jawaban.
 
   ## Bahasa
-
   * Tentukan bahasa jawaban berdasarkan pesan terbaru pengguna.
   * Jika pesan terbaru terutama menggunakan bahasa Jepang, balas langsung dalam bahasa Jepang.
   * Jika pesan terbaru terutama menggunakan bahasa Inggris, balas dalam bahasa Inggris.
@@ -295,10 +390,30 @@ async function handleAIMessage(message, client) {
       },
       body: JSON.stringify({
         model,
+
         messages: [
           { role: 'system', content: getSystemPrompt(message.guildId) },
           ...history,
-          { role: 'user', content },
+          {
+            role: 'user',
+            content: (() => {
+              if (!isGrammarQuestion(content)) return content;
+
+              const references = findGrammarReferences(content);
+
+              if (references.length === 0) return content;
+
+              return [
+                'Pertanyaan pengguna:',
+                content,
+                '',
+                'Referensi grammar dari database OpenJLPT:',
+                formatGrammarContext(references),
+                '',
+                'Gunakan referensi yang relevan untuk menjawab. Jangan menganggap referensi yang tidak berkaitan sebagai jawaban. Jika informasi tidak cukup, akui keterbatasannya.',
+              ].join('\n');
+            })(),
+          },
         ],
         max_tokens: 600,
         temperature: 0.8,
