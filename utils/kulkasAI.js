@@ -251,6 +251,11 @@ async function handleAIMessage(message, client) {
 
     const data = await response.json();
 
+    console.log(
+      '[Kulkas AI] Raw response:',
+      JSON.stringify(data.choices?.[0]?.message, null, 2)
+    );
+
     if (!response.ok) {
       console.error(
         `[Kulkas AI] API gagal: HTTP ${response.status}`,
