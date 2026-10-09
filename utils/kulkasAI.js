@@ -230,6 +230,10 @@ async function handleAIMessage(message, client) {
     console.log('[Kulkas AI] System prompt:', getSystemPrompt(message.guildId));
     console.log('[Kulkas AI] Riwayat:', history.length);
 
+    console.log('[Kulkas AI] Input user:', JSON.stringify(content));
+    console.log('[Kulkas AI] Context key:', key);
+    console.log('[Kulkas AI] History:', JSON.stringify(history));
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
