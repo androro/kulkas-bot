@@ -274,12 +274,36 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  // Handle AI Kulkas di server Discord
+
+  // Pesan server diteruskan ke AI.
   if (message.guild) {
     await handleAIMessage(message, client);
+    return;
   }
 
-  // Fitur menfess tetap khusus DM
+  // DM yang sedang menjalani sesi menfess jangan diproses AI.
+  if (menfessSessions.has(message.author.id)) {
+    // Lanjutkan ke handler sesi menfess di bawah.
+  } else {
+    const content = message.content.trim().toLowerCase();
+
+    // Jangan proses perintah untuk fitur menfess sebagai chat AI.
+    const menfessCommands = [
+      'menfess',
+    ];
+
+    const isMenfessCommand =
+      menfessCommands.includes(content) ||
+      content.startsWith('hapus ') ||
+      content.startsWith('balas ') ||
+      content.startsWith('hapuskomen ');
+
+    if (!isMenfessCommand) {
+      await handleAIMessage(message, client);
+    }
+  }
+
+  // Fitur menfess tetap khusus DM.
   if (message.channel.type !== ChannelType.DM) return;
 
   const userId = message.author.id;
