@@ -95,6 +95,7 @@ function findGrammarReferences(content, limit = 4) {
     .map((item) => item.entry);
 }
 
+
 function formatGrammarContext(entries) {
   return entries
     .map((entry) => JSON.stringify({
@@ -102,7 +103,12 @@ function formatGrammarContext(entries) {
       level: entry.level,
       meaning: entry.meaning,
       formation: entry.formation,
-      examples: entry.examples,
+      examples: (entry.examples || []).map((example) => ({
+        ja: example.ja,
+        furigana: example.furigana,
+        romaji: example.romaji,
+        en: example.en,
+      })),
       notes: entry.notes,
     }))
     .join('\n');
