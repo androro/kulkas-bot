@@ -10,8 +10,6 @@ function getSystemPrompt(guildId) {
   const sepuhServerId = process.env.SEPUH_SERVER_ID;
   const techServerId = process.env.GUILD_ID;
 
-
-
   const basePrompt = `
   Kamu adalah Kulkas, AI teman ngobrol dan asisten belajar multibahasa di Discord.
 
@@ -227,6 +225,10 @@ async function handleAIMessage(message, client) {
 
   try {
     await message.channel.sendTyping();
+
+    console.log('[Kulkas AI] Model:', model);
+    console.log('[Kulkas AI] System prompt:', getSystemPrompt(message.guildId));
+    console.log('[Kulkas AI] Riwayat:', history.length);
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
