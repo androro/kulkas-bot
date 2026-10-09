@@ -439,7 +439,14 @@ async function handleAIMessage(message, client) {
                 'Referensi grammar dari database OpenJLPT:',
                 formatGrammarContext(references),
                 '',
-                'Gunakan referensi yang relevan untuk menjawab. Jangan menganggap referensi yang tidak berkaitan sebagai jawaban. Jika informasi tidak cukup, akui keterbatasannya.',
+                [
+                  'Gunakan data grammar di atas sebagai referensi utama.',
+                  'Untuk perbandingan, jelaskan setiap pola berdasarkan datanya masing-masing.',
+                  'Jangan menambahkan aturan, batasan penggunaan, atau rumus yang tidak didukung referensi.',
+                  'Jika informasi tidak tersedia, katakan bahwa informasi tersebut belum tersedia.',
+                  'Pastikan contoh kalimat Jepang, romaji, dan terjemahannya saling cocok.',
+                  'Jangan mengubah atau salah mengeja romaji.',
+                ].join('\n'),
               ].join('\n');
             })(),
           },
