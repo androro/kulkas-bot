@@ -524,6 +524,8 @@ async function handleAIMessage(message, client) {
     const rawAnswer = data.choices?.[0]?.message?.content?.trim() || '';
     const answer = appendOriginalGrammarExamples(rawAnswer, content);
 
+    console.log('[Grammar Final Answer]', answer);
+
     if (!answer) {
       await message.reply({
         content: 'Hah? Aku malah nggak dapat jawaban. Coba lagi.',
