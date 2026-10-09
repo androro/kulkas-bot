@@ -137,6 +137,14 @@ function appendOriginalGrammarExamples(answer, content) {
 
   if (examples.length === 0) return answer;
 
+  // Jika jawaban sudah memuat kalimat Jepang dari database,
+  // jangan menempelkan contoh yang sama untuk kedua kalinya.
+  const hasDatabaseExample = examples.some((example) =>
+    answer.includes(example.ja)
+  );
+
+  if (hasDatabaseExample) return answer;
+
   const exampleSection = examples
     .map((example, index) =>
       `${index + 1}. ${example.ja}\n   Arti (EN): ${example.en}`
