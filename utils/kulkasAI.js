@@ -487,8 +487,8 @@ async function handleAIMessage(message, client) {
                   'Untuk perbandingan, jelaskan setiap pola berdasarkan datanya masing-masing.',
                   'Jangan menambahkan aturan, batasan penggunaan, atau rumus yang tidak didukung referensi.',
                   'Jika informasi tidak tersedia, katakan bahwa informasi tersebut belum tersedia.',
-                  'Pastikan contoh kalimat Jepang, romaji, dan terjemahannya saling cocok.',
-                  'Jangan mengubah atau salah mengeja romaji.',
+                  'Jika pengguna meminta contoh kalimat, jangan membuat atau menuliskan contoh kalimat sendiri. Contoh akan ditambahkan oleh program dari database OpenJLPT.',
+                  'Jangan membuat romaji sendiri karena database contoh tidak menyediakan romaji.',
                 ].join('\n'),
               ].join('\n');
             })(),
