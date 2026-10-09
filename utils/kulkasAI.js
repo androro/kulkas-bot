@@ -401,6 +401,15 @@ async function handleAIMessage(message, client) {
 
               const references = findGrammarReferences(content);
 
+              console.log(
+                '[Grammar DB]',
+                references.map((entry) => ({
+                  pattern: entry.pattern,
+                  level: entry.level,
+                  meaning: entry.meaning,
+                }))
+              );
+
               if (references.length === 0) return content;
 
               return [
