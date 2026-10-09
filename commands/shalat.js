@@ -10,7 +10,7 @@ const {
   MessageFlags,
 } = require('discord.js');
 
-const { setUserSettings, getUserSettings, readStore } = require('../utils/shalatStore');
+const { setUserSettings, getUserSettings } = require('../utils/shalatStore');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,55 +20,10 @@ module.exports = {
       subcommand
         .setName('setup')
         .setDescription('Kirim panel Shalat Reminder')
-  )
-  .addSubcommand((subcommand) =>
-    subcommand
-      .setName('debug')
-      .setDescription('Cek data Shalat Reminder yang bermasalah')
-  ),
+    ),
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
-
-    if (subcommand === 'debug') {
-      if (!interaction.memberPermissions?.has('Administrator')) {
-        return interaction.reply({
-          content: 'Kamu tidak punya izin untuk menggunakan command ini.',
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const users = readStore().users || {};
-
-      const invalidUsers = Object.entries(users).filter(
-        ([, settings]) =>
-          settings?.city &&
-          settings.city.toLowerCase() === 'jepang'
-      );
-
-      if (invalidUsers.length === 0) {
-        return interaction.reply({
-          content: 'Tidak ditemukan user dengan lokasi `Jepang`.',
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-
-      const lines = invalidUsers.map(
-        ([userId, settings]) =>
-          `• <@${userId}> — \`${settings.city}\` — ${
-            settings.enabled ? 'Aktif' : 'Nonaktif'
-          }`
-      );
-
-      return interaction.reply({
-        content: [
-          '**Data lokasi yang perlu diperbaiki:**',
-          '',
-          ...lines,
-        ].join('\n'),
-        flags: MessageFlags.Ephemeral,
-      });
-    }
 
     if (subcommand !== 'setup') return;
 
