@@ -523,4 +523,7 @@ async function handleAIMessage(message, client) {
   }
 }
 
-module.exports = { handleAIMessage };
+module.exports = {
+  handleAIMessage,
+  findGrammarReferences,
+};
