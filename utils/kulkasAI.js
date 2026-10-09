@@ -114,6 +114,38 @@ function formatGrammarContext(entries) {
     .join('\n');
 }
 
+function getOriginalGrammarExamples(content) {
+  const references = findGrammarReferences(content);
+
+  return references.flatMap((entry) =>
+    (entry.examples || []).map((example) => ({
+      pattern: entry.pattern,
+      ja: example.ja,
+      furigana: example.furigana,
+      en: example.en,
+    }))
+  );
+}
+
+function appendOriginalGrammarExamples(answer, content) {
+  const asksForExamples =
+    /contoh|contoh kalimat|reikai/i.test(content);
+
+  if (!asksForExamples) return answer;
+
+  const examples = getOriginalGrammarExamples(content);
+
+  if (examples.length === 0) return answer;
+
+  const exampleSection = examples
+    .map((example, index) =>
+      `${index + 1}. ${example.ja}\n   Arti (EN): ${example.en}`
+    )
+    .join('\n\n');
+
+  return `${answer}\n\n**Contoh asli dari database OpenJLPT:**\n${exampleSection}`;
+}
+
 function isGrammarQuestion(content) {
   return /bunpou|文法|tata bahasa|pola grammar|pola bahasa jepang|arti pola|cara pakai pola|jelasin pola|jelaskan pola|perbedaan pola|bedanya pola|contoh kalimat|grammar pattern|grammar point|how to use|meaning of|〜|～/i.test(
     content
@@ -489,7 +521,8 @@ async function handleAIMessage(message, client) {
       return;
     }
 
-    const answer = data.choices?.[0]?.message?.content?.trim();
+    const rawAnswer = data.choices?.[0]?.message?.content?.trim() || '';
+    const answer = appendOriginalGrammarExamples(rawAnswer, content);
 
     if (!answer) {
       await message.reply({
