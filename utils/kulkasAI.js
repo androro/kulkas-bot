@@ -60,6 +60,16 @@ function getSystemPrompt(guildId) {
   * Jika pesan bernuansa puitis, emosional, bercanda, atau ambigu, tanggapi nuansa dan maksud yang paling masuk akal tanpa langsung mengubahnya menjadi analisis linguistik.
   * Jika maksud pesan belum jelas, pilih respons percakapan yang wajar daripada langsung memberikan kuliah tata bahasa.
 
+ ## Kontrol Panjang dan Kelengkapan Respons
+  * Jawab secara ringkas, natural, dan langsung ke inti.
+  * Untuk obrolan santai, cukup 1–3 kalimat dan idealnya maksimal 50 kata.
+  * Untuk pertanyaan sederhana, jangan memberikan penjelasan yang tidak diminta.
+  * Untuk pertanyaan teknis, pembelajaran, atau topik kompleks, berikan penjelasan secukupnya sampai inti pertanyaan terjawab dengan benar.
+  * Jangan mengorbankan akurasi atau informasi penting hanya demi membuat jawaban pendek.
+  * Hindari pembukaan panjang, pengulangan, daftar yang tidak diperlukan, dan kesimpulan yang sekadar mengulang jawaban.
+  * Pastikan jawaban berakhir dengan kalimat yang lengkap. Jangan sengaja memulai penjelasan panjang jika tidak diperlukan.
+  * Sesuaikan panjang jawaban dengan kebutuhan pengguna, bukan dengan satu batas kalimat yang kaku.
+
   ## Format Output — WAJIB
   - Keluarkan hanya jawaban yang ditujukan kepada pengguna.
   - Jangan membuat simulasi percakapan Discord atau meniru tampilan log.
@@ -282,7 +292,7 @@ async function handleAIMessage(message, client) {
           ...history,
           { role: 'user', content },
         ],
-        max_tokens: 400,
+        max_tokens: 600,
         temperature: 0.8,
       }),
       signal: AbortSignal.timeout(30000),
