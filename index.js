@@ -4,6 +4,7 @@ const { generateCircleAvatar } = require('./utils/generateAvatar');
 const { getNextMenfessNumber, logMenfess, getMenfessEntry, addReport, freeNumber, logComment, getCommentEntry, getMenfessEntryByThreadId } = require('./utils/menfessStore');
 const { startTikTokMonitor } = require('./utils/tiktokMonitor');
 const { startShalatScheduler } = require('./utils/shalatScheduler');
+const { handleAIMessage } = require('./utils/kulkasAI');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -273,6 +274,12 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  // Handle AI Kulkas di server Discord
+  if (message.guild) {
+    await handleAIMessage(message, client);
+  }
+
+  // Fitur menfess tetap khusus DM
   if (message.channel.type !== ChannelType.DM) return;
 
   const userId = message.author.id;
